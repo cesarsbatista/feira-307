@@ -1,0 +1,29 @@
+name: Importar camadas oficiais de Belo Horizonte
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/importar_bhgeo.py'
+      - '.github/workflows/atualizar-camadas-bh.yml'
+permissions:
+  contents: write
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Buscar e preparar bases oficiais
+        run: python scripts/importar_bhgeo.py
+      - name: Publicar camadas validadas na branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dados-externos/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Atualiza bairros, regionais e bacias oficiais de BH'
+            git push
+          fi
