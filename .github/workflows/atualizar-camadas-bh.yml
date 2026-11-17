@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'scripts/importar_bhgeo.py'
+      - 'scripts/importar_v4.py'
       - '.github/workflows/atualizar-camadas-bh.yml'
 permissions:
   contents: write
@@ -17,13 +18,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Buscar e preparar bases oficiais
-        run: python scripts/importar_bhgeo.py
+        run: |
+          python scripts/importar_bhgeo.py
+          python scripts/importar_v4.py
       - name: Publicar camadas validadas na branch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add dados-externos/
           if ! git diff --cached --quiet; then
-            git commit -m 'Atualiza bairros, regionais e bacias oficiais de BH'
+            git commit -m 'Atualiza camadas oficiais, limite municipal e indicadores por bairro'
             git push
           fi
