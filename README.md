@@ -1,27 +1,38 @@
-# Missão Justiça Climática — Turma 307
+# Raízes da Desigualdade — Missão Justiça Climática V2
 
-**Atlas Ambiental Interativo de Belo Horizonte**
+**Escola Estadual Governador Milton Campos · Turma 307 · Feira Integrada de Ciência, Tecnologia, Cultura e Inovação 2026**
 
-**Escola Estadual Governador Milton Campos** · **Turma 307** · **Feira Integrada 2026**
+## Abrir a aplicação
 
-## Acesso
+**https://cesarsbatista.github.io/feira-307/** (GitHub Pages deve estar habilitado na branch `main`, pasta `/(root)`).
 
-Após habilitar o GitHub Pages: **https://cesarsbatista.github.io/feira-307/**
+## O que foi implementado na V2
 
-## Conteúdo
+- **Mapa:** oito camadas cartográficas, pesquisa de rua (online), consulta de atributos e transparência das camadas.
+- **Comparar:** seleção de dois pontos A e B e tabela com os indicadores disponíveis nas respectivas posições.
+- **Soluções:** jardim de chuva, microárea de sombra e corredor ecológico, laboratório didático e ficha de intervenção para imprimir ou exportar.
+- **Apresentar:** cinco etapas relacionadas à pergunta, metodologia e proposta da pesquisa, com ativação contextual das camadas.
+- **Pesquisa:** problema, hipótese, etapas concluídas/planejadas, ODS 10, 11, 13 e 15, fontes e limitações de cada camada.
 
-WebGIS educacional com oito camadas temáticas, incluindo áreas de risco de inundação e escorregamento, exposição a ondas de calor, alagamento, cursos d'água, conexões verdes e permeabilidade. Permite ligar e desligar camadas, ajustar transparência, clicar para consultar atributos, pesquisar ruas com internet e seguir percursos temáticos.
+## Limites fundamentais
 
-## Estrutura
+O comparador é **pontual e exploratório**: não calcula médias, correlações, índices ou rankings de bairros. O pacote cartográfico recebido **não contém camadas específicas de arborização de vias, indicadores sociais ou limites de bairros compatíveis**. Esses dados serão necessários para validar comparações territoriais.
 
-- `index.html`: interface, cartografia e lógica de visualização.
-- `dados/parte-01.txt` a `dados/parte-15.txt`: dados geográficos, divididos em blocos menores para publicação via GitHub.
-- `.nojekyll`: garante publicação direta dos arquivos estáticos pelo GitHub Pages.
+O indicador **EXP_ONDA** não mede temperatura em graus Celsius nem representa, sozinho, um mapa medido de ilhas de calor. Uma posição fora de um polígono de risco cadastrado não comprova ausência de risco. Os metadados de produção das bases precisam ser verificados com as fontes oficiais. Não use a ferramenta como laudo ou alerta em tempo real.
 
-Os 15 arquivos de dados precisam estar disponíveis junto com o `index.html`. **Não use apenas o HTML do GitHub para funcionar offline**. Para uso sem conexão, mantenha a versão local completa em HTML previamente entregue.
+## Estrutura técnica
 
-## Habilitar GitHub Pages
+- `index.html`: página e funcionalidades da V2.
+- `dados/parte-01.txt` a `dados/parte-15.txt`: dados geográficos extraídos das camadas encaminhadas no pacote QGIS.
+- `.nojekyll`: configuração de publicação estática.
 
-No repositório, acesse **Settings → Pages → Build and deployment**. Escolha **Deploy from a branch**, selecione **main**, **/(root)** e clique em **Save**.
+A aplicação usa arquivos locais no próprio repositório e não depende de um servidor de mapas. Pesquisa de ruas e mapa-base OpenStreetMap necessitam de internet. Para uso offline sem servidor web, utilize o HTML único fornecido como backup na conversa.
 
-O projeto é uma cópia dos dados do QGIS, não uma atualização automática dos arquivos .qgz. A pesquisa de ruas e o mapa-base utilizam serviços externos; exigem internet. Os dados não representam alertas de enchentes em tempo real nem laudos de imóveis. Confirme autoria e atualização dos dados com suas fontes originais.
+## Fontes para conferir metadados
+
+- [BHGeo — Acervo Cartográfico](https://prefeitura.pbh.gov.br/bhgeo/acervo-cartografico)
+- [Plano Municipal de Arborização Urbana](https://prefeitura.pbh.gov.br/meio-ambiente/plano-municipal-de-arborizacao-urbana)
+- [Plano Local de Ação Climática](https://prefeitura.pbh.gov.br/meio-ambiente/plano-local-de-acao-climatica-de-belo-horizonte)
+- [IBGE — Censo 2022: entorno dos domicílios](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/tipologias-do-territorio/24702-caracteristicas-urbanisticas-do-entorno-dos-domicilios.html)
+
+O projeto é um produto educativo, fundamentado no texto escrito da turma, e não se confunde com uma pesquisa de campo concluída.
