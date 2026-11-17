@@ -22,5 +22,17 @@
     "source": "PBH — IDE-BHGEO (WFS)",
     "reference": "Ano de referência: conferir metadados da PBH",
     "url": "https://geoservicos.pbh.gov.br/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=ide_bhgeo%3ASUBBACIA_HIDROGRAFICA&srsName=EPSG%3A4326&outputFormat=application%2Fjson&maxFeatures=15000"
+  },
+  "municipio": {
+    "source": "IBGE — API de Malhas Municipais, código 3106200",
+    "reference": "Malha oficial do município, versão do serviço IBGE",
+    "url": "https://servicodados.ibge.gov.br/api/v3/malhas/municipios/3106200?formato=application%2Fvnd.geo%2Bjson&qualidade=maxima",
+    "count": 1
+  },
+  "perfil_bairros": {
+    "source": "Prefeitura de Belo Horizonte / Prodabel — Censo IBGE 2022",
+    "reference": "População e Domicílio por Bairro 2022; publicação 07/08/2025",
+    "url": "https://ckan.pbh.gov.br/dataset/a6bfc464-a88b-4b50-a653-05f7975d5208/resource/4f51b598-374a-482b-a7b3-a7b4ce1beda8/download/20250801_populacao_domicilio_bairro_2022.csv",
+    "count": 493
   }
 }
