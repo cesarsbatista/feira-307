@@ -65,7 +65,7 @@
  <div class="top-right"><div class="school-wordmark" role="img" aria-label="Identificação do Colégio Estadual Central — Escola Estadual Governador Milton Campos"><strong>ESTADUAL<br>CENTRAL</strong><span>Escola Estadual<br>Governador Milton Campos</span></div></div>
 </header>
 <aside class="sidebar">
- <div class="side-hero"> <h1>Raízes da<br>desigualdade.</h1><p>Arborização, calor e enchentes como expressões da injustiça climática em Belo Horizonte.</p><div class="hero-meta"><span>BELO HORIZONTE · MG</span><span>ODS 10 · 11 · 13 · 15</span></div></div>
+ <div class="side-hero"> <h1>Raízes da<br>desigualdade</h1><p>Arborização, calor e enchentes como expressões da injustiça climática em Belo Horizonte.</p><div class="hero-meta"><span>BELO HORIZONTE · MG</span><span>ODS 10 · 11 · 13 · 15</span></div></div>
  <nav class="nav-tabs" aria-label="Navegação do painel">
 <button type="button" class="active" data-tab="camadas">Mapa</button>
 <button type="button" data-tab="comparar">Comparar</button>
@@ -192,8 +192,8 @@ const extraMeta={};for(const id of EXT_KEYS)DATA['x'+id]=[];
 const config=Object.fromEntries(configs.map(c=>[c.id,c]));const selected=new Set(configs.filter(c=>c.init).map(c=>c.id));
 const bairroState={name:null,features:[],data:null,profiles:new Map(),profilesReady:false};const comparison={a:null,b:null,active:null}, sceneState={solution:'chuva',scene:'asfalto'}, storyState={index:0};const view={cx:0,cy:0,zoom:11.7,w:1,h:1}, interaction={dragging:false,lastX:0,lastY:0,moved:0}, marker={point:null,name:''};
 let tileEnabled=true,basemapMode='streets',tileErrCount=0,frameRequested=false;const tileCache=new Map();const MAX_Z=18,MIN_Z=10;
-const tileUrl=(z,x,y)=>basemapMode==='satellite'?`https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`:`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
-function basemapCredit(){const el=document.getElementById('attribution');el.innerHTML=basemapMode==='satellite'?'Imagem: <a href="https://www.arcgis.com/home/item.html?id=50c23e4987a44de4ab163e1baeab4a46" target="_blank" rel="noopener noreferrer">Esri, Maxar, Earthstar Geographics e comunidade GIS</a> · Dados temáticos: turma 307':basemapMode==='streets'?'Mapa de ruas: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> · Dados temáticos: turma 307':'Dados temáticos: projeto QGIS · turma 307';}
+const tileUrl=(z,x,y)=>basemapMode==='satellite'?`https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`:`https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`;
+function basemapCredit(){const el=document.getElementById('attribution');el.innerHTML=basemapMode==='satellite'?'Imagem: <a href="https://www.arcgis.com/home/item.html?id=50c23e4987a44de4ab163e1baeab4a46" target="_blank" rel="noopener noreferrer">Esri, Maxar, Earthstar Geographics e comunidade GIS</a> · Dados temáticos: turma 307':basemapMode==='streets'?'Mapa de ruas: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> · © <a href="https://carto.com/attribution/" target="_blank" rel="noopener noreferrer">CARTO</a> · Dados temáticos: turma 307':'Dados temáticos: projeto QGIS · turma 307';}
 function changeBasemap(mode){basemapMode=mode;tileEnabled=mode!=='none';tileErrCount=0;tileCache.clear();document.querySelectorAll('[data-basemap]').forEach(x=>x.classList.toggle('chosen',x.dataset.basemap===mode));document.getElementById('basemap-menu').hidden=true;document.getElementById('basemap-btn').setAttribute('aria-expanded','false');document.getElementById('basemap-btn').classList.toggle('pressed',tileEnabled);basemapCredit();requestDraw();}
 const toXY=(lon,lat)=>{lat=Math.min(85.05,Math.max(-85.05,lat));return [(lon+180)/360*K, (1-Math.asinh(Math.tan(lat*PI/180))/PI)/2*K]};
 const toLonLat=(x,y)=>[(x/K*360-180),(180/PI)*Math.atan(Math.sinh(PI*(1-2*y/K)))];
@@ -296,17 +296,20 @@ function updateAutocomplete(){
 async function searchAddress(e){e.preventDefault();if(searchPending)return;let q=ui.input.value.trim();if(q.length<3){showSearch([],'Digite pelo menos 3 caracteres.');return}searchPending=true;document.getElementById('search-btn').textContent='...';showSearch([],'Consultando endereços e os dados locais...');let loc=offlineMatches(q);let internet=[];let netFail=false;if(loc.length)showSearch(loc,'Resultados locais encontrados. Consultando também a busca online...');if(!navigator.onLine){showSearch(loc,loc.length?'Resultados disponíveis offline.':'Sem resultados locais. A busca de endereços requer internet.');searchPending=false;document.getElementById('search-btn').textContent='Buscar';return}
  try{const url=new URL('https://nominatim.openstreetmap.org/search');url.searchParams.set('format','jsonv2');url.searchParams.set('q',q+', Belo Horizonte, Minas Gerais, Brasil');url.searchParams.set('addressdetails','1');url.searchParams.set('limit','5');url.searchParams.set('countrycodes','br');url.searchParams.set('bounded','1');url.searchParams.set('viewbox','-44.12,-19.72,-43.75,-20.15');let abort=new AbortController();let t=setTimeout(()=>abort.abort(),7000);let res;try{res=await fetch(url.toString(),{headers:{Accept:'application/json'},signal:abort.signal})}finally{clearTimeout(t)}if(!res.ok)throw Error('Busca online indisponível');const data=await res.json();internet=data.filter(p=>p.lon&&p.lat).map(p=>({name:(p.display_name||'Endereço localizado').split(',').slice(0,3).join(', '),sub:'Resultado de endereço · OpenStreetMap',point:toXY(Number(p.lon),Number(p.lat)),kind:'online'}));}catch{netFail=true}
  let combined=[...internet,...loc];showSearch(combined,combined.length?(netFail?'Internet indisponível; exibindo resultados disponíveis no mapa.':`${combined.length} resultado(s). Clique para aproximar e investigar.`):(netFail?'Sem resultados locais. Para pesquisar qualquer rua ou bairro, conecte o computador à internet.':'Nenhum resultado encontrado. Tente um nome mais completo.'));searchPending=false;document.getElementById('search-btn').textContent='Buscar'}
-function enterPresentation(){
- document.body.classList.add('presentation-mode');
+function clearTabSelections(){
  clearTimeout(autocompleteTimer);ui.search.classList.remove('open');ui.search.innerHTML='';
- ui.input.blur();ui.info.classList.remove('open');marker.point=null;marker.name='';
+ ui.info.classList.remove('open');marker.point=null;marker.name='';
  bairroState.name=null;bairroState.features=[];
  document.getElementById('bairro-select').value='';
  document.getElementById('bairro-map-label').hidden=true;renderBairroProfile();
- comparison.a=null;comparison.b=null;comparison.active=null;
+ comparison.a=null;comparison.b=null;armCompare(null);
  document.getElementById('label-a').textContent='Não selecionado';
  document.getElementById('label-b').textContent='Não selecionado';
- document.getElementById('compare-floating').hidden=true;renderComparison();
+ renderComparison();requestDraw();
+}
+function enterPresentation(){
+ document.body.classList.add('presentation-mode');
+ ui.input.blur();
  // Mantém as camadas temáticas: a apresentação controla suas próprias etapas.
  if(config.municipio.ready&&DATA.xmunicipio.length)zoomToBBox(bairroBox(DATA.xmunicipio),1.13);
  else {const fallback=[toXY(-44.12,-19.72),toXY(-43.75,-20.15)];zoomToBBox([fallback[0][0],fallback[0][1],fallback[1][0],fallback[1][1]],1.15)}
@@ -314,7 +317,14 @@ function enterPresentation(){
 }
 function bind(){document.getElementById('search-form').addEventListener('submit',e=>{clearTimeout(autocompleteTimer);searchAddress(e)});ui.input.addEventListener('input',()=>{clearTimeout(autocompleteTimer);autocompleteTimer=setTimeout(updateAutocomplete,160)});ui.input.addEventListener('focus',()=>{if(ui.input.value.trim().length>=2)updateAutocomplete()});document.addEventListener('pointerdown',e=>{if(!e.target.closest('.search-box'))ui.search.classList.remove('open')});document.getElementById('info-close').onclick=()=>ui.info.classList.remove('open');
  document.getElementById('btn-showall').onclick=()=>setSelected(configs.map(c=>c.id));document.getElementById('btn-clear').onclick=()=>setSelected([]);document.getElementById('btn-default').onclick=()=>setSelected(configs.filter(c=>c.init).map(c=>c.id));
- document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id==='tab-'+b.dataset.tab));if(b.dataset.tab==='percursos')enterPresentation();else document.body.classList.remove('presentation-mode')});
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+ const changed=!b.classList.contains('active');
+ if(changed)clearTabSelections();
+ document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));
+ document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id==='tab-'+b.dataset.tab));
+ if(b.dataset.tab==='percursos')enterPresentation();
+ else document.body.classList.remove('presentation-mode');
+});
  const presets={agua:['flood','alag','water','inun'],calor:['heat','green','water'],solo:['perme','green','water'],justica:['flood','slide','heat']};document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{setSelected(presets[b.dataset.preset]);document.querySelector('[data-tab="camadas"]').click()});
  document.getElementById('zoom-in').onclick=()=>zoomAt(view.w/2,view.h/2,1);document.getElementById('zoom-out').onclick=()=>zoomAt(view.w/2,view.h/2,-1);document.getElementById('zoom-reset').onclick=()=>fitExtent();document.getElementById('basemap-btn').onclick=()=>{const m=document.getElementById('basemap-menu');m.hidden=!m.hidden;document.getElementById('basemap-btn').setAttribute('aria-expanded',String(!m.hidden));};document.querySelectorAll('[data-basemap]').forEach(b=>b.addEventListener('click',()=>changeBasemap(b.dataset.basemap)));document.addEventListener('pointerdown',e=>{if(!e.target.closest('#basemap-menu')&&!e.target.closest('#basemap-btn')){document.getElementById('basemap-menu').hidden=true;document.getElementById('basemap-btn').setAttribute('aria-expanded','false')}});
  document.getElementById('legend-toggle').onclick=()=>{const isOpen=ui.leg.hidden;ui.leg.hidden=!isOpen;ui.leg.classList.toggle('open',isOpen);document.getElementById('legend-toggle').setAttribute('aria-expanded',String(isOpen));};document.getElementById('zoom-municipio').onclick=()=>{if(config.municipio.ready&&DATA.xmunicipio.length)zoomToBBox(bairroBox(DATA.xmunicipio),1.16);else fitExtent()};document.getElementById('bairro-select').onchange=e=>e.target.value?selectBairro(e.target.value,true):clearBairro();document.getElementById('bairro-clear').onclick=()=>clearBairro();document.getElementById('fullscreen-btn').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else host.requestFullscreen?.()};
