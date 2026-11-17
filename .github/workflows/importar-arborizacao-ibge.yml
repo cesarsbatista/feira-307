@@ -1,0 +1,46 @@
+name: Publicar arborização IBGE — Censo 2022
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/importar_arborizacao_ibge.py"
+      - ".github/workflows/importar-arborizacao-ibge.yml"
+permissions:
+  contents: write
+jobs:
+  importar-arborizacao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependências geoespaciais
+        run: python -m pip install --disable-pip-version-check shapely>=2.0 pyproj>=3.6
+      - name: Recortar dados percentuais do IBGE para Belo Horizonte
+        run: python -u scripts/importar_arborizacao_ibge.py
+      - name: Validar arquivo gerado
+        run: |
+          python - <<'PY'
+          import json
+          p="dados-externos/arborizacao.json"
+          j=json.load(open(p))
+          assert len(j['features'])>900
+          values=[f[2][1] for f in j['features']]
+          assert all(0<=x<=100 for x in values)
+          assert min(values)<max(values)
+          print("Feições:",len(values),"mínimo:",min(values),"máximo:",max(values),"campo:",j['field'])
+          PY
+      - name: Publicar camada oficial
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dados-externos/arborizacao.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publica arborização IBGE Censo 2022 para os setores de BH'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
