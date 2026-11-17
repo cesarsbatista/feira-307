@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """Importação V4: limite municipal oficial IBGE e população por bairro PBH/Censo 2022."""
 import csv,io,json,urllib.parse
-from importar_bhgeo import OUT,get,normalize
+from importar_bhgeo import OUT,read_url,transform
+
+def get(url,timeout=40):
+    return read_url(url)
+
+def normalize(features):
+    out=transform(features)
+    return out,len(out)
+
 
 MALHA='https://servicodados.ibge.gov.br/api/v3/malhas/municipios/3106200'
 CSV='https://ckan.pbh.gov.br/dataset/a6bfc464-a88b-4b50-a653-05f7975d5208/resource/4f51b598-374a-482b-a7b3-a7b4ce1beda8/download/20250801_populacao_domicilio_bairro_2022.csv'
