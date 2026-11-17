@@ -1,38 +1,43 @@
-# Raízes da Desigualdade — Missão Justiça Climática V2
+# Raízes da Desigualdade — Missão Justiça Climática V4
 
-**Escola Estadual Governador Milton Campos · Turma 307 · Feira Integrada de Ciência, Tecnologia, Cultura e Inovação 2026**
+**Escola Estadual Governador Milton Campos (Estadual Central)** · **Turma 307** · **Feira Integrada 2026**
 
-## Abrir a aplicação
+## Acessar
 
-**https://cesarsbatista.github.io/feira-307/** (GitHub Pages deve estar habilitado na branch `main`, pasta `/(root)`).
+- [Abrir o mapa interativo](https://cesarsbatista.github.io/feira-307/)
+- [Código e histórico](https://github.com/cesarsbatista/feira-307)
 
-## O que foi implementado na V2
+## V4 — alterações implementadas
 
-- **Mapa:** oito camadas cartográficas, pesquisa de rua (online), consulta de atributos e transparência das camadas.
-- **Comparar:** seleção de dois pontos A e B e tabela com os indicadores disponíveis nas respectivas posições.
-- **Soluções:** jardim de chuva, microárea de sombra e corredor ecológico, laboratório didático e ficha de intervenção para imprimir ou exportar.
-- **Apresentar:** cinco etapas relacionadas à pergunta, metodologia e proposta da pesquisa, com ativação contextual das camadas.
-- **Pesquisa:** problema, hipótese, etapas concluídas/planejadas, ODS 10, 11, 13 e 15, fontes e limitações de cada camada.
+- Cabeçalho e painel esquerdo mais estreitos, sem o subtítulo redundante “Raízes da Desigualdade · Belo Horizonte” nem o letreiro duplicado da feira no painel.
+- Pop-up de seleção A/B deslocado para longe da busca; barra de pesquisa discretamente menor.
+- A busca localiza um ponto e posiciona o marcador **sem abrir automaticamente o quadro “Leitura do território”**; o quadro abre ao clicar no marcador ou diretamente no mapa.
+- Legenda das camadas recolhida inicialmente, aberta apenas pelo novo ícone da barra lateral.
+- Comparação A/B sem coordenadas exibidas.
+- Seleção de um bairro pela lista/pesquisa, com contorno e preenchimento semitransparente, zoom, nome e botão para limpar.
+- Limite de Belo Horizonte com perímetro e sombreamento externo, quando a geometria oficial importada estiver disponível, além de botão de enquadramento.
+- Perfil socioambiental por bairro, com população, domicílios e densidade do Censo 2022 **quando a tabela oficial da Prefeitura estiver carregada**; mapa temático de densidade por bairro, sem interpolar valores.
+- No comparador, **valores climáticos referentes ao ponto e demografia referente ao bairro são indicados com seus diferentes recortes**.
 
-## Limites fundamentais
+## Dados e fontes
 
-O comparador é **pontual e exploratório**: não calcula médias, correlações, índices ou rankings de bairros. O pacote cartográfico recebido **não contém camadas específicas de arborização de vias, indicadores sociais ou limites de bairros compatíveis**. Esses dados serão necessários para validar comparações territoriais.
+Os dados ambientais iniciais vêm dos oito conjuntos cartográficos encaminhados pela turma e continuam no diretório `dados/`. Bairros, regionais, bacias e sub-bacias foram importados de dados oficiais e documentos públicos da Prefeitura de Belo Horizonte para `dados-externos/`.
 
-O indicador **EXP_ONDA** não mede temperatura em graus Celsius nem representa, sozinho, um mapa medido de ilhas de calor. Uma posição fora de um polígono de risco cadastrado não comprova ausência de risco. Os metadados de produção das bases precisam ser verificados com as fontes oficiais. Não use a ferramenta como laudo ou alerta em tempo real.
+O script `scripts/importar_v4.py` acrescenta a **Malha Municipal do IBGE (código 3106200)** e a tabela oficial da **PBH/Prodabel “População e Domicílio por Bairro 2022”**, gerando `dados-externos/municipio.json` e `dados-externos/perfil_bairros.json`. O workflow pode ser executado manualmente em Actions ou por mudanças nos scripts.
 
-## Estrutura técnica
-
-- `index.html`: página e funcionalidades da V2.
-- `dados/parte-01.txt` a `dados/parte-15.txt`: dados geográficos extraídos das camadas encaminhadas no pacote QGIS.
-- `.nojekyll`: configuração de publicação estática.
-
-A aplicação usa arquivos locais no próprio repositório e não depende de um servidor de mapas. Pesquisa de ruas e mapa-base OpenStreetMap necessitam de internet. Para uso offline sem servidor web, utilize o HTML único fornecido como backup na conversa.
-
-## Fontes para conferir metadados
-
+- [PBH — População e Domicílio por Bairro 2022](https://dados.pbh.gov.br/dataset/populacao-e-domicilio-por-bairro-2021/resource/4f51b598-374a-482b-a7b3-a7b4ce1beda8)
+- [IBGE — Malhas municipais](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/15774-malhas.html)
+- [IBGE — Características Urbanísticas do Entorno dos Domicílios](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/tipologias-do-territorio/24702-caracteristicas-urbanisticas-do-entorno-dos-domicilios.html)
 - [BHGeo — Acervo Cartográfico](https://prefeitura.pbh.gov.br/bhgeo/acervo-cartografico)
-- [Plano Municipal de Arborização Urbana](https://prefeitura.pbh.gov.br/meio-ambiente/plano-municipal-de-arborizacao-urbana)
-- [Plano Local de Ação Climática](https://prefeitura.pbh.gov.br/meio-ambiente/plano-local-de-acao-climatica-de-belo-horizonte)
-- [IBGE — Censo 2022: entorno dos domicílios](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/tipologias-do-territorio/24702-caracteristicas-urbanisticas-do-entorno-dos-domicilios.html)
 
-O projeto é um produto educativo, fundamentado no texto escrito da turma, e não se confunde com uma pesquisa de campo concluída.
+## Limitações importantes
+
+A **arborização do Censo 2022 ainda não foi incorporada**, porque a base vetorial por setor censitário e o seu indicador percentual precisam ser processados e validados antes de fazer uma representação fiel. O inventário individual de árvores não está publicamente disponível em formato completo confirmado. Da mesma forma, **renda, idade e cor/raça por bairro ainda não estão incorporadas**. A aplicação sinaliza essas indisponibilidades, em vez de inventar números.
+
+A população, os domicílios e a densidade referem-se ao **bairro como um todo**; a interseção com áreas de inundação, escorregamento, calor e permeabilidade é uma **consulta pontual**, não uma média por bairro.
+
+O mapa é **educativo, não um sistema oficial de previsão, alerta de enchentes, laudo de risco ou aferição instantânea de temperatura**. A ausência de risco na geometria consultada não comprova ausência de risco real.
+
+## Operação offline
+
+O código inicial mantém as camadas originais em arquivos estáticos, mas mapas-base e pesquisa geocodificada dependem da internet. Para utilização offline, gere a versão incorporada dos arquivos com `scripts/gerar_offline.py` após a importação das camadas oficiais.
