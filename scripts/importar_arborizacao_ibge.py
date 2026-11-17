@@ -78,6 +78,8 @@ def main():
       cols=[x[1] for x in db.execute('PRAGMA table_info('+qid(tab)+')')]
       print('Campos IBGE: ',cols,flush=True)
       codecols=[c for c in cols if re.search('(^cd_setor|setor|cd_mun|cod_setor)',c,re.I)]
+      code=next((c for c in cols if c.lower()=='cd_setor'),None)
+      if code is None:raise RuntimeError('Chave CD_SETOR ausente da base IBGE')
       # Dicionário IBGE: V05230 = moradores em vias SEM árvores; V05200 = total com entorno pesquisado.
       # O campo oficial publicado V05200_V05230_PERC representa a parcela com pelo menos 1 árvore.
       # Não inferir por similaridade de nome: escolher a variável definida pelo IBGE.
