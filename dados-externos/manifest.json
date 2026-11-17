@@ -1,0 +1,26 @@
+{
+  "bairros": {
+    "feicoes": 331,
+    "source": "PBH — IDE-BHGEO (WFS)",
+    "reference": "Ano de referência: conferir metadados da PBH",
+    "url": "https://geoservicos.pbh.gov.br/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=ide_bhgeo%3ABAIRRO_OFICIAL&srsName=EPSG%3A4326&outputFormat=application%2Fjson&maxFeatures=15000"
+  },
+  "regionais": {
+    "feicoes": 10,
+    "source": "PBH — IDE-BHGEO (WFS)",
+    "reference": "Ano de referência: conferir metadados da PBH",
+    "url": "https://geoservicos.pbh.gov.br/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=geosiurbe%3AREGIONAL&srsName=EPSG%3A4326&outputFormat=application%2Fjson&maxFeatures=15000"
+  },
+  "bacias": {
+    "feicoes": 4,
+    "source": "PBH — IDE-BHGEO (WFS)",
+    "reference": "Ano de referência: conferir metadados da PBH",
+    "url": "https://geoservicos.pbh.gov.br/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=ide_bhgeo%3ABACIA_HIDROGRAFICA&srsName=EPSG%3A4326&outputFormat=application%2Fjson&maxFeatures=15000"
+  },
+  "subbacias": {
+    "feicoes": 294,
+    "source": "PBH — IDE-BHGEO (WFS)",
+    "reference": "Ano de referência: conferir metadados da PBH",
+    "url": "https://geoservicos.pbh.gov.br/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=ide_bhgeo%3ASUBBACIA_HIDROGRAFICA&srsName=EPSG%3A4326&outputFormat=application%2Fjson&maxFeatures=15000"
+  }
+}
