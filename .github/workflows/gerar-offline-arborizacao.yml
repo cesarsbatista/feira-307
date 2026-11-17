@@ -1,0 +1,42 @@
+name: Atualizar backup offline com arborização
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/gerar-offline-arborizacao.yml"
+      - "scripts/gerar_offline_v4.py"
+      - "dados-externos/arborizacao.json"
+permissions:
+  contents: write
+jobs:
+  gerar-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reunir todas as bases e gerar HTML autônomo
+        run: |
+          python scripts/gerar_offline_v4.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('offline/Missao_Justica_Climatica_V4_OFFLINE.html').read_text('utf-8')
+          assert "'arborizacao':" in s or '"arborizacao":' in s
+          assert 'const OFFICIAL_DATA=' in s
+          assert 'const OFFICIAL_PROFILE=' in s
+          print('Arquivo offline validado:',len(s),'caracteres')
+          PY
+      - name: Publicar backup offline no repositório
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add offline/Missao_Justica_Climatica_V4_OFFLINE.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Atualiza backup offline com arborização IBGE 2022'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
