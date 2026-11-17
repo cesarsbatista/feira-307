@@ -1,4 +1,4 @@
-# Raízes da Desigualdade — Missão Justiça Climática V4
+# Raízes da Desigualdade — Missão Justiça Climática V5
 
 **Escola Estadual Governador Milton Campos (Estadual Central)** · **Turma 307** · **Feira Integrada 2026**
 
@@ -6,6 +6,14 @@
 
 - [Abrir o mapa interativo](https://cesarsbatista.github.io/feira-307/)
 - [Código e histórico](https://github.com/cesarsbatista/feira-307)
+
+## V5 — alterações implementadas
+
+- Modo **Apresentar** oculta a pesquisa e enquadra o limite completo de Belo Horizonte (utilizando a geometria municipal disponível; enquadramento aproximado enquanto carrega).
+- Ao entrar em **Apresentar**, são retirados os destaques anteriores de bairros, marcadores, pontos de comparação e janelas de informação. As camadas temáticas do roteiro continuam ativas conforme a etapa da apresentação.
+- Barra de pesquisa mais estreita e mais próxima das bordas superiores e laterais, com adaptação para telas pequenas.
+- Sugestões locais de bairros, cursos d'água e conexões verdes durante a digitação; pesquisas de endereço na internet permanecem disponíveis ao clicar em **Buscar**.
+- O painel da apresentação mostra somente a pergunta, sem o prefixo “Pergunta ao público”.
 
 ## V4 — alterações implementadas
 
