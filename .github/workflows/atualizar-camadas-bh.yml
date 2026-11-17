@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/importar_bhgeo.py'
       - 'scripts/importar_v4.py'
+      - 'scripts/gerar_offline_v4.py'
       - '.github/workflows/atualizar-camadas-bh.yml'
 permissions:
   contents: write
@@ -21,11 +22,13 @@ jobs:
         run: |
           python scripts/importar_bhgeo.py
           python scripts/importar_v4.py
+      - name: Gerar cópia de segurança offline da V4
+        run: python scripts/gerar_offline_v4.py
       - name: Publicar camadas validadas na branch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add dados-externos/
+          git add dados-externos/ offline/
           if ! git diff --cached --quiet; then
             git commit -m 'Atualiza camadas oficiais, limite municipal e indicadores por bairro'
             git push
