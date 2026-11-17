@@ -78,25 +78,16 @@ def main():
       cols=[x[1] for x in db.execute('PRAGMA table_info('+qid(tab)+')')]
       print('Campos IBGE: ',cols,flush=True)
       codecols=[c for c in cols if re.search('(^cd_setor|setor|cd_mun|cod_setor)',c,re.I)]
-      arbcols=[c for c in cols if re.search(r'arbor|\barb',c,re.I)]
-      print('Chaves possíveis:',codecols,'Arborização possível:',arbcols,flush=True)
-      code=next((c for c in codecols if 'setor' in c.lower()),None)
-      if code is None:continue
-      candidates=[]
-      for c in arbcols:
-        if c==code:continue
-        vals=[r[0] for r in db.execute('SELECT '+qid(c)+' FROM '+qid(tab)+' WHERE CAST('+qid(code)+' AS TEXT) LIKE ? AND '+qid(c)+' IS NOT NULL LIMIT 35',(MUN+'%',))]
-        vv=[parse_num(v) for v in vals]
-        valid=sum(v is not None for v in vv)
-        if valid>=max(4,len(vals)*.7):
-          score=(3 if re.search(r'percent|pct|perc',c,re.I) else 0)+(1 if re.search(r'arb|arbor',c,re.I) else 0)
-          candidates.append((score,c))
-      print('Candidatos percentuais:',candidates,flush=True)
-      if not candidates:continue
-      candidates.sort(reverse=True)
-      if len(candidates)>1 and candidates[0][0]==candidates[1][0]:
-        raise RuntimeError('Campos de arborização igualmente prováveis; revisão manual necessária: '+str(candidates))
-      pctcol=candidates[0][1]
+      # Dicionário IBGE: V05230 = moradores em vias SEM árvores; V05200 = total com entorno pesquisado.
+      # O campo oficial publicado V05200_V05230_PERC representa a parcela com pelo menos 1 árvore.
+      # Não inferir por similaridade de nome: escolher a variável definida pelo IBGE.
+      pctcol='v05200_v05230_perc'
+      if pctcol not in cols:
+        raise RuntimeError('Campo IBGE oficial de arborização ausente: '+pctcol)
+      sample=list(db.execute('SELECT '+qid(code)+','+qid(pctcol)+',v05200_v05230 FROM '+qid(tab)+' WHERE CAST('+qid(code)+' AS TEXT) LIKE ? AND '+qid(pctcol)+' IS NOT NULL LIMIT 7',(MUN+'%',)))
+      print('Amostra de arborização (setor, percentual, moradores em vias com árvores):',sample,flush=True)
+      if len(sample)<5 or sum(parse_num(x[1]) is not None for x in sample)<5:
+        raise RuntimeError('Coluna percentual de arborização do IBGE não validada para BH')
       geomcol=db.execute('SELECT column_name FROM gpkg_geometry_columns WHERE table_name=?',(tab,)).fetchone()[0]
       srs=int(db.execute('SELECT srs_id FROM gpkg_geometry_columns WHERE table_name=?',(tab,)).fetchone()[0])
       t=Transformer.from_crs('EPSG:'+str(srs),'EPSG:4326',always_xy=True)
@@ -130,9 +121,9 @@ def main():
       out={
         'source':'IBGE — Censo Demográfico 2022, Pesquisa Urbanística do Entorno dos Domicílios',
         'reference':'Dados percentuais por setor censitário; publicação 12/12/2025; coleta de referência 2022',
-        'url':URL,'count':len(features),'indicator':'Percentual de moradores em vias com arborização (setor censitário)',
+        'url':URL,'count':len(features),'indicator':'Percentual de moradores em vias com pelo menos uma árvore (setor censitário)',
         'field':pctcol,'keyField':code,'spatialUnit':'setor censitário','validSectors':non_null,
-        'method':'Porcentagens originais do IBGE, sem agregação de bairros nem cálculos de cobertura de copa; geometria simplificada para WebGIS.',
+        'method':'Percentual V05200_V05230_PERC publicado pelo IBGE: moradores em vias com pelo menos uma árvore. Sem agregação por bairro nem cálculos de cobertura de copa. Geometria simplificada para WebGIS.',
         'features':features
       }
       OUT.parent.mkdir(parents=True,exist_ok=True)
