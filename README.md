@@ -1,4 +1,4 @@
-# Raízes da Desigualdade — Missão Justiça Climática V5
+# Raízes da Desigualdade — Missão Justiça Climática V6
 
 **Escola Estadual Governador Milton Campos (Estadual Central)** · **Turma 307** · **Feira Integrada 2026**
 
@@ -6,6 +6,12 @@
 
 - [Abrir o mapa interativo](https://cesarsbatista.github.io/feira-307/)
 - [Código e histórico](https://github.com/cesarsbatista/feira-307)
+
+## V6 — alterações implementadas
+
+- Ao trocar entre as abas **Mapa, Comparar, Soluções, Apresentar e Pesquisa**, as seleções temporárias são limpas: bairros destacados, pontos pesquisados, marcadores de comparação A/B, sugestões e janelas informativas. A troca de abas preserva o enquadramento atual, exceto na aba Apresentar.
+- O título lateral passa a ser **Raízes da desigualdade** (sem ponto final).
+- Mapa de ruas alterado para **CARTO Positron**, com cartografia suave e menos elementos visuais que o mapa convencional. Algumas etiquetas de interesse ainda podem aparecer; satélite e dados temáticos permanecem disponíveis. Créditos a OpenStreetMap e CARTO.
 
 ## V5 — alterações implementadas
 
