@@ -152,7 +152,7 @@
  <button type="button" data-basemap="none" class="base-choice"><span class="base-preview preview-none"></span><span><b>Sem mapa-base</b><small>Somente os temas</small></span></button>
  <p>A imagem de satélite e o mapa de ruas exigem internet.</p>
  </div>
- <div class="bairro-map-label" id="bairro-map-label" hidden></div><div class="compare-floating" id="compare-floating" aria-live="polite" hidden>Marque um ponto no mapa</div><div id="info-card" class="info-card" aria-live="polite"><div class="info-head"><div><div class="info-kicker">Análise espacial · Clique no mapa</div><div class="info-title">Leitura do território</div></div><button id="info-close" class="info-close" aria-label="Fechar informações">×</button></div><div id="info-body"></div></div>
+ <div class="bairro-map-label" id="bairro-map-label" hidden></div><div class="compare-floating" id="compare-floating" aria-live="polite" hidden>Marque um ponto no mapa</div><div id="info-card" class="info-card" aria-live="polite"><div class="info-head"><div><div class="info-kicker">Análise espacial · Clique no mapa</div><div class="info-title" id="info-title">Local selecionado</div></div><button id="info-close" class="info-close" aria-label="Fechar informações">×</button></div><div id="info-body"></div></div>
  <div class="map-bottom"><div class="map-status sr-only"><div id="status-layer" class="status-tag" aria-live="off"></div><div id="status-network" class="status-tag" aria-live="off"></div></div><div class="legend-card" id="legend-card" aria-label="Legenda de camadas" hidden></div></div>
  <div class="attrib" id="attribution">Cartografia temática: projeto QGIS da turma 307</div>
  <div class="loading" id="loading"><div class="spin"></div><div>Preparando atlas geográfico...</div></div>
@@ -307,9 +307,17 @@ function distanceSegment(x,y,x1,y1,x2,y2){let dx=x2-x1,dy=y2-y1,t=(dx||dy)?clamp
 function nearWater(pt){if(!selected.has('water'))return null;let radius=6/pxs(),b=[pt[0]-radius,pt[1]-radius,pt[0]+radius,pt[1]+radius];for(const f of DATA.w){if(!isVisible(f[0],b))continue;for(const path of f[1])for(let i=1;i<path.length;i++){let a=path[i-1],c=path[i];if(distanceSegment(pt[0],pt[1],a[0],a[1],c[0],c[1])<radius)return f}}return null}
 function findNamedGreen(pt){for(const f of DATA.g)if(insideFeature(f,pt))return f;return null}
 function metric(title,value){return `<div class="metric"><span>${esc(title)}</span><b>${esc(value)}</b></div>`}
-function inspect(pt){marker.point=pt;marker.name='Ponto investigado';let flood=findPolygon('f',pt),slide=findPolygon('s',pt),zone=findPolygon('z',pt),perm=findPolygon('p',pt),green=findNamedGreen(pt),water=nearWater(pt);const [lon,lat]=toLonLat(...pt);
+function inspect(pt){
+ const previousName=marker.name;
+ const bairro=findPolygon('xbairros',pt);
+ const bairroName=bairro?String(bairro[2]?.[0]||'').trim():'';
+ const selectedStreet=previousName&&previousName!=='Ponto investigado'&&previousName!=='Ponto comparado'&&!previousName.startsWith('Local ')?previousName:'';
+ const placeName=selectedStreet||bairroName||'Local selecionado';
+ document.getElementById('info-title').textContent=placeName;
+ marker.point=pt;marker.name=placeName;
+ let flood=findPolygon('f',pt),slide=findPolygon('s',pt),zone=findPolygon('z',pt),perm=findPolygon('p',pt),green=findNamedGreen(pt),water=nearWater(pt);const [lon,lat]=toLonLat(...pt);
  let out=`<div class="info-coords">${lat.toFixed(5)}°, ${lon.toFixed(5)}° · SIRGAS/WGS 84 aproximados</div>`;
- out+=metric('Risco de inundação',flood?'Intersecta área mapeada':'Não identificado nesta camada');out+=metric('Risco de escorregamento',slide?'Intersecta área mapeada':'Não identificado nesta camada');
+ out+=metric('Risco de inundação',flood?'Intersecta área mapeada':'Não consta');out+=metric('Risco de escorregamento',slide?'Intersecta área mapeada':'Não consta');
  if(config.arborizacao.ready){const arb=findPolygon('xarborizacao',pt);if(arb)out+=metric('Moradores em vias arborizadas · Censo 2022 (setor censitário)',safeIndicator(arb[2]?.[1])+'%')}if(zone){out+=metric('Indicador de alagamento',thematicClass('alag',zone[2][1]));out+=metric('Indicador de inundação',thematicClass('inun',zone[2][2]));out+=metric('Exposição a ondas de calor',thematicClass('heat',zone[2][3]));out+=metric('Célula de análise',String(zone[2][0]));}
  if(perm){out+=metric('Taxa cadastrada de permeabilidade (%)',fmt(perm[2][1]));if(perm[2][2])out+=metric('Observação da permeabilidade',perm[2][2])}
  if(green){out+=metric('Conexão verde',((green[2][1]||'')+' '+(green[2][2]||'')).trim()||'Área cadastrada')}
