@@ -7,6 +7,13 @@
 - [Abrir o mapa interativo](https://cesarsbatista.github.io/feira-307/)
 - [Código e histórico](https://github.com/cesarsbatista/feira-307)
 
+## Atualização — classificação qualitativa dos indicadores climáticos
+
+- Calor, inundação (indicador SBN) e alagamento (indicador SBN) passam a utilizar **Baixo, Médio, Alto e Muito alto** em vez de valores numéricos, nas consultas, comparação e legenda.
+- As classes são relativas aos quartis de cada indicador nos valores válidos da base fornecida e **não são classificações oficiais de risco**.
+- Na comparação territorial de bairros, informa-se a **maior classe encontrada em qualquer polígono que intersecte o bairro**, sem afirmar que toda sua extensão apresenta essa condição.
+- O cadastro vetorial de **áreas de risco de inundação** continua separado do indicador SBN de inundação, mantendo a regra de interseção espacial para cada bairro.
+
 ## Atualização — comparação territorial de bairros
 
 - Ao escolher um bairro pela busca ou pelo seletor, o sistema abre **Comparar** e preenche automaticamente A, depois B (ou substitui B caso ambos já estejam ocupados).
