@@ -403,6 +403,70 @@ function streetNameCompatible(actual,asked){
  return !!a.core&&!!b.core&&a.core===b.core&&
   (a.norm===b.norm||a.norm===a.core||b.norm===b.core);
 }
+
+const streetOfficialCache=new Map();
+function officialFeatureProperty(properties,name){
+ const key=Object.keys(properties||{}).find(k=>k.toUpperCase()===name);
+ return key?properties[key]:undefined;
+}
+function officialGeoJSONLines(geometry){
+ if(!geometry)return [];
+ const arr=geometry.type==='LineString'?[geometry.coordinates]:geometry.type==='MultiLineString'?geometry.coordinates:[];
+ return arr.map(line=>line.filter(pt=>Array.isArray(pt)&&Number.isFinite(Number(pt[0]))&&Number.isFinite(Number(pt[1]))&&Math.abs(Number(pt[0]))<=180&&Math.abs(Number(pt[1]))<=90)
+  .map(pt=>toXY(Number(pt[0]),Number(pt[1])))).filter(line=>line.length>=2);
+}
+async function fetchOfficialWFS(filter){
+ const u=new URL('https://bhmap.pbh.gov.br/v2/api/idebhgeo/wfs');
+ Object.entries({service:'WFS',version:'1.1.0',request:'GetFeature',typeName:'ide_bhgeo:TRECHO_LOGRADOURO',outputFormat:'application/json',srsName:'EPSG:4326',maxFeatures:'5000',CQL_FILTER:filter}).forEach(([k,v])=>u.searchParams.set(k,v));
+ const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);
+ try{
+  const res=await fetch(u.toString(),{headers:{Accept:'application/json'},signal:ctrl.signal});
+  if(!res.ok)throw Error('WFS municipal '+res.status);
+  const data=await res.json();
+  return Array.isArray(data.features)?data.features:[];
+ }finally{clearTimeout(timer)}
+}
+async function fetchOfficialStreetLines(item){
+ const name=String(item.roadName||'').trim();
+ const needle=streetNameForms(name).core;
+ if(needle.length<3)return [];
+ const key=needle;
+ if(streetOfficialCache.has(key))return streetOfficialCache.get(key);
+ const parts=needle.split(' ').filter(x=>x.length>=3);
+ if(!parts.length)return [];
+ // Busca conservadora pelo último componente do nome; validação integral depois.
+ const token=parts[parts.length-1].replace(/'/g,"''").toUpperCase();
+ const first=await fetchOfficialWFS("NOME_LOGRADOURO ILIKE '%"+token+"%'");
+ const candidates=first.map(feature=>{
+  const props=feature.properties||{};
+  const streetName=String(officialFeatureProperty(props,'NOME_LOGRADOURO')||'');
+  const typeName=String(officialFeatureProperty(props,'DESC_SIGLA_TIPO_LOGRAD')||officialFeatureProperty(props,'SIGLA_TIPO_LOGRADOURO')||'');
+  const id=officialFeatureProperty(props,'ID_LOGRADOURO');
+  const lines=officialGeoJSONLines(feature.geometry);
+  return {id,name:(typeName+' '+streetName).trim(),lines};
+ }).filter(x=>x.id!==undefined&&x.id!==null&&x.lines.length&&
+    (streetNameCompatible(x.name,name)||streetNameForms(x.name).core===needle||
+     streetNameForms(x.name).core===streetNameForms(item.addressRoad).core));
+ if(!candidates.length)return [];
+ let closest=null,minDist=Infinity;
+ for(const c of candidates)for(const line of c.lines){
+  const d=streetDistanceToReference(line,item.point);
+  if(d<minDist){closest=c;minDist=d}
+ }
+ if(!closest)return [];
+ // ID_LOGRADOURO associa todos os trechos, mesmo com descontinuidades topológicas.
+ const id=String(closest.id);
+ if(!/^\d+$/.test(id))return [];
+ let all=first.filter(x=>String(officialFeatureProperty(x.properties||{},'ID_LOGRADOURO'))===id);
+ // Consulta específica por ID para evitar corte de paginação da consulta por nome.
+ try{
+  const byId=await fetchOfficialWFS('ID_LOGRADOURO='+id);
+  if(byId.length)all=byId;
+ }catch(e){console.warn('Consulta complementar de trechos oficiais:',e.message)}
+ const lines=all.flatMap(x=>officialGeoJSONLines(x.geometry));
+ if(lines.length)streetOfficialCache.set(key,lines);
+ return lines;
+}
 async function fetchStreetLines(item){
  const name=String(item.roadName||'').trim(),lat=item.lat,lon=item.lon;
  if(!name||!Number.isFinite(lat)||!Number.isFinite(lon))return [];
@@ -443,12 +507,14 @@ async function selectOnlineResult(item){
   // A resposta de geocodificação pode apontar só para um imóvel; a seleção
   // deve buscar a geometria do logradouro, sem fingir que um ponto é uma linha.
   showStreetFeedback('Buscando o traçado completo de '+item.roadName+'...');
-  let lines=roadGeoJSONLines(item.geojson);
+  let lines=[];
+  let source='';
+  try{lines=await fetchOfficialStreetLines(item);if(lines.length)source='Cadastro oficial de logradouros · PBH'}catch(e){console.warn('Base municipal indisponível:',e.message)}
   if(!lines.length){
-   try{lines=await fetchStreetLines(item)}catch(e){console.warn('Falha ao obter a geometria',e)}
-  }else{
-   try{const all=await fetchStreetLines(item);if(all.length)lines=all}catch(e){console.warn('Falha ao ampliar o traçado',e)}
+   try{lines=await fetchStreetLines(item);if(lines.length)source='OpenStreetMap · segmentos conectados'}catch(e){console.warn('Busca OSM indisponível',e.message)}
   }
+  if(!lines.length){lines=roadGeoJSONLines(item.geojson);if(lines.length)source='Trecho parcial disponível na busca'}
+  if(source)ui.network.textContent='Traçado selecionado: '+source+'.';
   if(revision!==roadSelection.revision)return;
   if(lines.length){
    ui.search.classList.remove('open');
