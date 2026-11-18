@@ -190,6 +190,7 @@ const configs=[
 const EXT_KEYS=['municipio','bairros','regionais','bacias','subbacias','arborizacao','indicadores_sociais'];
 const extraMeta={};for(const id of EXT_KEYS)DATA['x'+id]=[];
 const config=Object.fromEntries(configs.map(c=>[c.id,c]));const selected=new Set(configs.filter(c=>c.init).map(c=>c.id));
+const roadSelection={lines:[],name:'',revision:0};
 const bairroState={name:null,features:[],data:null,profiles:new Map(),profilesReady:false};const comparison={a:null,b:null,active:null}, sceneState={solution:'chuva',scene:'asfalto'}, storyState={index:0};const view={cx:0,cy:0,zoom:11.7,w:1,h:1}, interaction={dragging:false,lastX:0,lastY:0,moved:0}, marker={point:null,name:''};
 let tileEnabled=true,basemapMode='streets',tileErrCount=0,frameRequested=false;const tileCache=new Map();const MAX_Z=18,MIN_Z=10;
 const tileUrl=(z,x,y)=>basemapMode==='satellite'?`https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`:`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
@@ -236,8 +237,27 @@ function drawMunicipioMask(){if(!config.municipio.ready||!selected.has('municipi
 function drawMunicipioBorder(){if(!config.municipio.ready||!selected.has('municipio'))return;ctx.save();for(const f of DATA.xmunicipio){makePath(f);ctx.strokeStyle='#2e754a';ctx.globalAlpha=.95;ctx.lineWidth=2.4;ctx.stroke()}ctx.restore();}
 function drawBairroShape(features,color,fill=.18,width=3){if(!features?.length)return;ctx.save();ctx.lineJoin='round';for(const f of features){makePath(f);ctx.fillStyle=color;ctx.globalAlpha=fill;ctx.fill('evenodd');ctx.globalAlpha=.95;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}ctx.restore();}
 function bairroShapesByPoint(pt){if(!config.bairros.ready||!pt)return [];let f=findPolygon('xbairros',pt);if(!f)return [];const key=normalize(f[2]?.[0]);return DATA.xbairros.filter(x=>normalize(x[2]?.[0])===key)}
-function drawBairroSelections(){drawBairroShape(bairroState.features,'#96d071',.24,3.4);if(comparison.a)drawBairroShape(comparison.a.kind==='bairro'?comparison.a.features:bairroShapesByPoint(comparison.a.point),'#a4ca62',.09,2.3);if(comparison.b)drawBairroShape(comparison.b.kind==='bairro'?comparison.b.features:bairroShapesByPoint(comparison.b.point),'#f49a66',.09,2.3)}
-function draw(){ctx.clearRect(0,0,view.w,view.h);drawTileLayer();drawMunicipioMask();const b=bounds();for(const name of ['indicadores_sociais','heat','alag','inun','perme','green','pracas','slide','flood','water','natural','canal','bacias','subbacias','bairros','regionais','arborizacao'])drawLayer(name,b);drawMunicipioBorder();drawBairroSelections();drawMarker();drawCompareMarkers()}
+function drawBairroSelections(){
+ drawBairroShape(bairroState.features,'#96d071',.24,3.4);
+ if(comparison.a?.kind==='bairro')drawBairroShape(comparison.a.features,'#a4ca62',.09,2.3);
+ if(comparison.b?.kind==='bairro')drawBairroShape(comparison.b.features,'#f49a66',.09,2.3);
+}
+function drawStreetPaths(lines,color='#e97827'){
+ if(!lines?.length)return;
+ ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+ for(const line of lines){if(line.length<2)continue;
+  ctx.beginPath();for(let i=0;i<line.length;i++){const [x,y]=scr(...line[i]);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
+  ctx.globalAlpha=.94;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=9;ctx.stroke();
+  ctx.strokeStyle=color;ctx.lineWidth=5;ctx.stroke();
+ }
+ ctx.restore();
+}
+function drawStreetSelections(){
+ drawStreetPaths(roadSelection.lines);
+ if(comparison.a?.kind==='rua')drawStreetPaths(comparison.a.lines,'#79a842');
+ if(comparison.b?.kind==='rua')drawStreetPaths(comparison.b.lines,'#e9905d');
+}
+function draw(){ctx.clearRect(0,0,view.w,view.h);drawTileLayer();drawMunicipioMask();const b=bounds();for(const name of ['indicadores_sociais','heat','alag','inun','perme','green','pracas','slide','flood','water','natural','canal','bacias','subbacias','bairros','regionais','arborizacao'])drawLayer(name,b);drawMunicipioBorder();drawBairroSelections();drawStreetSelections();drawMarker();drawCompareMarkers()}
 function buildLayerControls(){let last='';const el=document.getElementById('layer-controls');let html='';for(const c of configs){if(c.group!==last){last=c.group;html+=`<div class="group-title">${esc(last)}</div>`}html+=`<div class="layer-row ${selected.has(c.id)?'':'off'} ${c.optional&&!c.ready?'unavailable':''}" id="row-${c.id}"><div class="layer-head"><input class="layer-toggle" type="checkbox" id="check-${c.id}" data-layer="${c.id}" ${selected.has(c.id)?'checked':''} ${c.optional&&!c.ready?'disabled':''} aria-label="Mostrar ${esc(c.label)}"><span class="layer-swatch" style="background:${c.color}"></span><label class="layer-text" for="check-${c.id}"><div class="layer-name">${esc(c.label)}</div><div class="layer-desc">${esc(c.desc)}</div></label></div><div class="layer-slider"><label for="range-${c.id}">Opacidade</label><input id="range-${c.id}" data-alpha="${c.id}" type="range" min="10" max="100" step="5" value="${Math.round(c.alpha*100)}"><span id="pct-${c.id}">${Math.round(c.alpha*100)}%</span></div></div>`}
  el.innerHTML=html;el.addEventListener('change',e=>{if(e.target.dataset.layer){const k=e.target.dataset.layer;if(e.target.checked)selected.add(k);else selected.delete(k);refresh()}});el.addEventListener('input',e=>{if(e.target.dataset.alpha){const k=e.target.dataset.alpha;config[k].alpha=Number(e.target.value)/100;document.getElementById('pct-'+k).textContent=e.target.value+'%';requestDraw()}})}
 function setSelected(arr){selected.clear();for(const a of arr){if(!config[a]?.optional||config[a]?.ready)selected.add(a)}refresh()}
@@ -280,7 +300,84 @@ function inspect(pt){marker.point=pt;marker.name='Ponto investigado';let flood=f
  ui.body.innerHTML=out;ui.info.classList.add('open');requestDraw()}
 function normalize(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().toLowerCase()}
 function offlineMatches(q){q=normalize(q).replace(/^(rua|av|avenida|praca|alameda|rodovia)\s+/,'');if(q.length<3)return [];let all=[];const seen=new Set();for(const f of DATA.g){let nam=(f[2][1]||'')+' '+(f[2][2]||'');let s=normalize(nam);if(s.includes(q)&&!seen.has('g'+s)){seen.add('g'+s);all.push({name:nam.trim()||'Conexão verde',sub:'Conexão verde cadastrada · busca local',bbox:f[0],kind:'local'})}}if(config.bairros.ready){for(const nam of new Set(DATA.xbairros.map(f=>String(f[2]?.[0]||'')).filter(Boolean))){if(normalize(nam).includes(q)) {let features=DATA.xbairros.filter(f=>f[2]?.[0]===nam);all.push({name:nam,sub:'Bairro oficial · selecionar perímetro',kind:'bairro',bbox:bairroBox(features)});}}}for(const f of DATA.w){let nam=f[2][1];let s=normalize(nam);if(s.includes(q)&&!seen.has('w'+s)){seen.add('w'+s);all.push({name:nam.trim()||'Curso d’água sem nome',sub:'Curso d’água · busca local',bbox:f[0],kind:'local'})}}return all.slice(0,8)}
-let searchResults=[];function showSearch(items,message=''){searchResults=items;ui.search.classList.add('open');ui.search.innerHTML=message?`<div class="result-message">${esc(message)}</div>`:'';for(let i=0;i<items.length;i++){let item=items[i],el=document.createElement('button');el.type='button';el.className='result-item';el.innerHTML=`${esc(item.name)}<small>${esc(item.sub)}</small>`;el.addEventListener('click',()=>{if(item.kind==='bairro'){chooseBairroForComparison(item.name)}else if(item.kind==='online'){marker.point=item.point;marker.name=item.name;zoomToPoint(item.point,15.2);selectBairroFromPoint(item.point,false);ui.info.classList.remove('open')}else{const pt=[(item.bbox[0]+item.bbox[2])/2,(item.bbox[1]+item.bbox[3])/2];marker.point=pt;marker.name=item.name;zoomToBBox(item.bbox,3.2);ui.info.classList.remove('open')}if(comparison.active&&marker.point)registerCompare(marker.point,comparison.active,item.name);ui.search.classList.remove('open')});ui.search.appendChild(el)}}
+let searchResults=[];function roadGeoJSONLines(geo){
+ if(!geo)return [];
+ const parts=geo.type==='LineString'?[geo.coordinates]:geo.type==='MultiLineString'?geo.coordinates:geo.type==='GeometryCollection'?geo.geometries.flatMap(roadGeoJSONLines).map(path=>path.map(toLonLatPoint)):[];
+ if(!['LineString','MultiLineString'].includes(geo.type))return [];
+ return parts.filter(path=>Array.isArray(path)&&path.length>=2).map(path=>path.filter(pt=>Array.isArray(pt)&&Number.isFinite(Number(pt[0]))&&Number.isFinite(Number(pt[1]))).map(pt=>toXY(Number(pt[0]),Number(pt[1])))).filter(x=>x.length>=2);
+}
+function streetBox(lines){
+ const b=[Infinity,Infinity,-Infinity,-Infinity];
+ for(const line of lines)for(const pt of line){b[0]=Math.min(b[0],pt[0]);b[1]=Math.min(b[1],pt[1]);b[2]=Math.max(b[2],pt[0]);b[3]=Math.max(b[3],pt[1])}
+ return b;
+}
+function selectRoadLines(lines,name){
+ roadSelection.lines=lines;roadSelection.name=name;
+ const bbox=streetBox(lines);
+ if(bbox.every(Number.isFinite))zoomToBBox(bbox,1.7);
+ marker.point=null;marker.name='';ui.info.classList.remove('open');
+ if(comparison.active){
+  const slot=comparison.active;const point=[(bbox[0]+bbox[2])/2,(bbox[1]+bbox[3])/2];
+  registerCompare(point,slot,name);
+  comparison[slot].kind='rua';comparison[slot].lines=lines;
+  // Consulta numérica continua pontual; linha é apenas geometria selecionada.
+  marker.point=null;renderComparison();
+ }
+ requestDraw();
+}
+async function fetchStreetLines(item){
+ // Uma rua é uma feição linear, não a área do bairro ou a superfície da via.
+ // Consulta trechos OSM identificados pelo nome exato, limitados a BH e às proximidades do endereço.
+ const name=String(item.roadName||'').trim(), lat=item.lat,lon=item.lon;
+ if(!name||!Number.isFinite(lat)||!Number.isFinite(lon))return [];
+ const escOverpass=name.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+ const query='[out:json][timeout:12];way["highway"]["name"="'+escOverpass+'"](around:2500,'+lat+','+lon+');out geom;';
+ const u='https://overpass.kumi.systems/api/interpreter?data='+encodeURIComponent(query);
+ const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),10000);
+ try{
+  const res=await fetch(u,{signal:abort.signal,headers:{Accept:'application/json'}});
+  if(!res.ok)throw Error('Serviço de logradouros indisponível');
+  const json=await res.json();
+  return (json.elements||[]).filter(e=>e.type==='way'&&Array.isArray(e.geometry)&&e.geometry.length>=2)
+   .map(e=>e.geometry.map(pt=>toXY(pt.lon,pt.lat)));
+ }finally{clearTimeout(timer)}
+}
+async function selectOnlineResult(item){
+ const revision=++roadSelection.revision;
+ if(item.isRoad){
+  let lines=[];
+  try{lines=await fetchStreetLines(item)}catch(e){console.warn('Consulta de traçado indisponível',e.message)}
+  if(!lines.length)lines=roadGeoJSONLines(item.geojson);
+  if(revision!==roadSelection.revision)return;
+  if(lines.length){selectRoadLines(lines,item.roadName||item.name);return}
+  // Não desenhar um polígono como se fosse uma rua.
+  roadSelection.lines=[];roadSelection.name='';
+  ui.network.textContent='Traçado linear não disponível para esta rua. O endereço foi localizado como ponto de referência.';
+ }else{roadSelection.lines=[];roadSelection.name=''}
+ if(revision!==roadSelection.revision)return;
+ marker.point=item.point;marker.name=item.name;
+ zoomToPoint(item.point,15.2);ui.info.classList.remove('open');
+ if(comparison.active)registerCompare(item.point,comparison.active,item.name);
+ requestDraw();
+}
+function showSearch(items,message=''){
+ searchResults=items;ui.search.classList.add('open');
+ ui.search.innerHTML=message?`<div class="result-message">${esc(message)}</div>`:'';
+ for(let i=0;i<items.length;i++){
+  const item=items[i],el=document.createElement('button');el.type='button';el.className='result-item';
+  el.innerHTML=`${esc(item.name)}<small>${esc(item.sub)}</small>`;
+  el.addEventListener('click',()=>{
+   ui.search.classList.remove('open');
+   if(item.kind==='bairro'){roadSelection.revision++;roadSelection.lines=[];chooseBairroForComparison(item.name);return}
+   if(item.kind==='online'){selectOnlineResult(item);return}
+   roadSelection.revision++;roadSelection.lines=[];
+   const pt=[(item.bbox[0]+item.bbox[2])/2,(item.bbox[1]+item.bbox[3])/2];
+   marker.point=pt;marker.name=item.name;zoomToBBox(item.bbox,3.2);ui.info.classList.remove('open');
+   if(comparison.active)registerCompare(pt,comparison.active,item.name);
+   requestDraw();
+  });ui.search.appendChild(el);
+ }
+}
 let searchPending=false;
 let autocompleteTimer=null;
 function updateAutocomplete(){
@@ -294,11 +391,19 @@ function updateAutocomplete(){
  else ui.search.classList.remove('open');
 }
 async function searchAddress(e){e.preventDefault();if(searchPending)return;let q=ui.input.value.trim();if(q.length<3){showSearch([],'Digite pelo menos 3 caracteres.');return}searchPending=true;document.getElementById('search-btn').textContent='...';showSearch([],'Consultando endereços e os dados locais...');let loc=offlineMatches(q);let internet=[];let netFail=false;if(loc.length)showSearch(loc,'Resultados locais encontrados. Consultando também a busca online...');if(!navigator.onLine){showSearch(loc,loc.length?'Resultados disponíveis offline.':'Sem resultados locais. A busca de endereços requer internet.');searchPending=false;document.getElementById('search-btn').textContent='Buscar';return}
- try{const url=new URL('https://nominatim.openstreetmap.org/search');url.searchParams.set('format','jsonv2');url.searchParams.set('q',q+', Belo Horizonte, Minas Gerais, Brasil');url.searchParams.set('addressdetails','1');url.searchParams.set('limit','5');url.searchParams.set('countrycodes','br');url.searchParams.set('bounded','1');url.searchParams.set('viewbox','-44.12,-19.72,-43.75,-20.15');let abort=new AbortController();let t=setTimeout(()=>abort.abort(),7000);let res;try{res=await fetch(url.toString(),{headers:{Accept:'application/json'},signal:abort.signal})}finally{clearTimeout(t)}if(!res.ok)throw Error('Busca online indisponível');const data=await res.json();internet=data.filter(p=>p.lon&&p.lat).map(p=>({name:(p.display_name||'Endereço localizado').split(',').slice(0,3).join(', '),sub:'Resultado de endereço · OpenStreetMap',point:toXY(Number(p.lon),Number(p.lat)),kind:'online'}));}catch{netFail=true}
+ try{const url=new URL('https://nominatim.openstreetmap.org/search');url.searchParams.set('format','jsonv2');url.searchParams.set('polygon_geojson','1');url.searchParams.set('q',q+', Belo Horizonte, Minas Gerais, Brasil');url.searchParams.set('addressdetails','1');url.searchParams.set('limit','5');url.searchParams.set('countrycodes','br');url.searchParams.set('bounded','1');url.searchParams.set('viewbox','-44.12,-19.72,-43.75,-20.15');let abort=new AbortController();let t=setTimeout(()=>abort.abort(),7000);let res;try{res=await fetch(url.toString(),{headers:{Accept:'application/json'},signal:abort.signal})}finally{clearTimeout(t)}if(!res.ok)throw Error('Busca online indisponível');const data=await res.json();internet=data.filter(p=>p.lon&&p.lat).map(p=>{
+ const roadName=p.address?.road||p.address?.pedestrian||p.address?.residential||p.name||(p.display_name||'').split(',')[0];
+ const isRoad=p.class==='highway'||p.category==='highway'||['road','pedestrian','residential'].includes(p.addresstype);
+ return {name:(p.display_name||'Endereço localizado').split(',').slice(0,3).join(', '),
+ sub:isRoad?'Logradouro · selecionar traçado linear':'Endereço · OpenStreetMap',
+ point:toXY(Number(p.lon),Number(p.lat)),lat:Number(p.lat),lon:Number(p.lon),
+ roadName,isRoad,geojson:p.geojson,kind:'online'};
+});}catch{netFail=true}
  let combined=[...internet,...loc];showSearch(combined,combined.length?(netFail?'Internet indisponível; exibindo resultados disponíveis no mapa.':`${combined.length} resultado(s). Clique para aproximar e investigar.`):(netFail?'Sem resultados locais. Para pesquisar qualquer rua ou bairro, conecte o computador à internet.':'Nenhum resultado encontrado. Tente um nome mais completo.'));searchPending=false;document.getElementById('search-btn').textContent='Buscar'}
 function clearTabSelections(){
  clearTimeout(autocompleteTimer);ui.search.classList.remove('open');ui.search.innerHTML='';
  ui.info.classList.remove('open');marker.point=null;marker.name='';
+ roadSelection.revision++;roadSelection.lines=[];roadSelection.name='';
  bairroState.name=null;bairroState.features=[];
  document.getElementById('bairro-select').value='';
  document.getElementById('bairro-map-label').hidden=true;renderBairroProfile();
@@ -356,7 +461,7 @@ Object.assign(sourceMeta,{
 });
 function drawCompareMarkers(){
  for(const [slot,item] of Object.entries({a:comparison.a,b:comparison.b})){
-  if(!item||item.kind==='bairro')continue;const [x,y]=scr(...item.point);if(x<-35||y<-35||x>view.w+35||y>view.h+35)continue;
+  if(!item||item.kind==='bairro'||item.kind==='rua')continue;const [x,y]=scr(...item.point);if(x<-35||y<-35||x>view.w+35||y>view.h+35)continue;
   ctx.save();ctx.beginPath();ctx.arc(x,y,16,0,Math.PI*2);ctx.fillStyle=slot==='a'?'#d8ed9a':'#f5b28a';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#17352a';ctx.stroke();ctx.fillStyle='#18342a';ctx.font='900 16px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(slot.toUpperCase(),x,y);ctx.restore();
  }
 }
@@ -387,7 +492,7 @@ function pointIndicators(point){
  return {flood:!!f,slide:!!s,z:z?z[2]:null,perme:perm?perm[2]:null,green:!!g,arbor:arb?arb[2]:null,socio:findSocialFromPoint(point)};
 }
 function safeIndicator(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'Sem dado':fmt(value)}
-function compareLabel(item){if(!item)return '—';return esc(item.name)+(item.kind==='bairro'?' · bairro inteiro':' · ponto')}
+function compareLabel(item){if(!item)return '—';return esc(item.name)+(item.kind==='bairro'?' · bairro inteiro':item.kind==='rua'?' · traçado da rua (indicadores pontuais)':' · ponto')}
 // Interseção cartográfica: bbox, contenção de vértices e cruzamento dos segmentos.
 function segmentsCross(a,b,c,d){
  const cross=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
