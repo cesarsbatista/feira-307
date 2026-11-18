@@ -404,6 +404,34 @@ function streetNameCompatible(actual,asked){
   (a.norm===b.norm||a.norm===a.core||b.norm===b.core);
 }
 
+const localStreetShards=new Map();
+let localStreetIndexPromise=null;
+async function localStreetIndex(){
+ if(!localStreetIndexPromise)localStreetIndexPromise=fetch('dados-externos/logradouros/index.json')
+  .then(r=>{if(!r.ok)throw Error('Base local de ruas ainda não foi gerada');return r.json()})
+  .catch(e=>{localStreetIndexPromise=null;throw e});
+ return localStreetIndexPromise;
+}
+async function localStreetShard(part){
+ if(!localStreetShards.has(part))localStreetShards.set(part,fetch('dados-externos/logradouros/parte-'+String(part).padStart(2,'0')+'.json')
+  .then(r=>{if(!r.ok)throw Error('Parte de logradouros não encontrada');return r.json()})
+  .catch(e=>{localStreetShards.delete(part);throw e}));
+ return localStreetShards.get(part);
+}
+async function fetchLocalStreetLines(item){
+ const index=await localStreetIndex();
+ const keys=[item.roadName,item.osmRoadName,item.addressRoad].filter(Boolean).map(n=>streetNameForms(n).core);
+ const matches=[...new Map(keys.flatMap(k=>index.streets?.[k]||[]).map(row=>[String(row[0]),row])).values()];
+ if(!matches.length)return [];
+ let best=null,bestDist=Infinity;
+ for(const [id,part] of matches){
+  const shard=await localStreetShard(part),lines=shard[id]||[];
+  let dist=Infinity;
+  for(const line of lines)dist=Math.min(dist,streetDistanceToReference(line,item.point));
+  if(dist<bestDist){bestDist=dist;best=lines}
+ }
+ return best||[];
+}
 const streetOfficialCache=new Map();
 function officialFeatureProperty(properties,name){
  const key=Object.keys(properties||{}).find(k=>k.toUpperCase()===name);
@@ -509,7 +537,10 @@ async function selectOnlineResult(item){
   showStreetFeedback('Buscando o traçado completo de '+item.roadName+'...');
   let lines=[];
   let source='';
-  try{lines=await fetchOfficialStreetLines(item);if(lines.length)source='Cadastro oficial de logradouros · PBH'}catch(e){console.warn('Base municipal indisponível:',e.message)}
+  try{lines=await fetchLocalStreetLines(item);if(lines.length)source='Cadastro oficial local de logradouros · PBH'}catch(e){console.info('Base local de ruas ainda indisponível:',e.message)}
+  if(!lines.length){
+   try{lines=await fetchOfficialStreetLines(item);if(lines.length)source='Cadastro oficial WFS · PBH'}catch(e){console.warn('Serviço municipal indisponível:',e.message)}
+  }
   if(!lines.length){
    try{lines=await fetchStreetLines(item);if(lines.length)source='OpenStreetMap · segmentos conectados'}catch(e){console.warn('Busca OSM indisponível',e.message)}
   }
