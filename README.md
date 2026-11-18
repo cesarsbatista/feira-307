@@ -7,6 +7,14 @@
 - [Abrir o mapa interativo](https://cesarsbatista.github.io/feira-307/)
 - [Código e histórico](https://github.com/cesarsbatista/feira-307)
 
+## Atualização — comparação territorial de bairros
+
+- Ao escolher um bairro pela busca ou pelo seletor, o sistema abre **Comparar** e preenche automaticamente A, depois B (ou substitui B caso ambos já estejam ocupados).
+- Indicadores binários de inundação, escorregamento e conexão verde consideram **interseção dos polígonos cadastrados com qualquer parte do perímetro do bairro**.
+- Indicadores numéricos de calor, alagamento, inundação e permeabilidade exibem a **faixa mínima–máxima dos polígonos que intersectam o bairro**, sem média ou ponderação por área.
+- Dados sociais continuam associados ao bairro quando a base de referência está disponível. Arborização setorial não é convertida em uma média fictícia de bairro.
+- Comparações pontuais permanecem disponíveis para consultas a locais específicos.
+
 ## V6 — alterações implementadas
 
 - Ao trocar entre as abas **Mapa, Comparar, Soluções, Apresentar e Pesquisa**, as seleções temporárias são limpas: bairros destacados, pontos pesquisados, marcadores de comparação A/B, sugestões e janelas informativas. A troca de abas preserva o enquadramento atual, exceto na aba Apresentar.
