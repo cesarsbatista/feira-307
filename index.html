@@ -351,21 +351,64 @@ function selectRoadLines(lines,name){
  }
  requestDraw();
 }
+function distanceToStreetSegment(pt,a,b){
+ const dx=b[0]-a[0],dy=b[1]-a[1];
+ const t=dx*dx+dy*dy?Math.max(0,Math.min(1,((pt[0]-a[0])*dx+(pt[1]-a[1])*dy)/(dx*dx+dy*dy))):0;
+ return Math.hypot(pt[0]-a[0]-t*dx,pt[1]-a[1]-t*dy);
+}
+function streetDistanceToReference(line,reference){
+ let dist=Infinity;
+ for(let i=1;i<line.length;i++)dist=Math.min(dist,distanceToStreetSegment(reference,line[i-1],line[i]));
+ return dist;
+}
+function connectedStreetWays(ways,reference){
+ if(!ways.length)return [];
+ // Retém os trechos com o mesmo nome ligados à via encontrada,
+ // evitando destacar outra rua homônima de uma região distante.
+ const coords=ways.map(w=>w.geometry.map(p=>toXY(p.lon,p.lat)));
+ let closest=0,minDistance=Infinity;
+ coords.forEach((line,i)=>{const d=streetDistanceToReference(line,reference);if(d<minDistance){minDistance=d;closest=i}});
+ const nodeWays=new Map();
+ ways.forEach((w,i)=>{for(const node of w.nodes||[]){if(!nodeWays.has(node))nodeWays.set(node,[]);nodeWays.get(node).push(i)}});
+ const visited=new Set([closest]),pending=[closest];
+ for(let k=0;k<pending.length;k++){
+  const i=pending[k];
+  for(const node of ways[i].nodes||[])for(const j of nodeWays.get(node)||[]){
+   if(!visited.has(j)){visited.add(j);pending.push(j)}
+  }
+ }
+ // Pequenas descontinuidades de digitalização: até ~24 m na projeção do mapa.
+ const tolerance=6;
+ let expanded=true;
+ while(expanded){
+  expanded=false;
+  for(let j=0;j<ways.length;j++){
+   if(visited.has(j))continue;
+   const other=coords[j];
+   if([...visited].some(i=>{
+    const line=coords[i];
+    return [line[0],line[line.length-1]].some(p=>[other[0],other[other.length-1]].some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<=tolerance));
+   })){visited.add(j);expanded=true}
+  }
+ }
+ return [...visited].map(i=>coords[i]);
+}
 async function fetchStreetLines(item){
- // Uma rua é uma feição linear, não a área do bairro ou a superfície da via.
- // Consulta trechos OSM identificados pelo nome exato, limitados a BH e às proximidades do endereço.
- const name=String(item.roadName||'').trim(), lat=item.lat,lon=item.lon;
+ // Obtém todos os trechos homônimos na região municipal, não somente os
+ // primeiros 2,5 km do ponto pesquisado.
+ const name=String(item.roadName||'').trim(),lat=item.lat,lon=item.lon;
  if(!name||!Number.isFinite(lat)||!Number.isFinite(lon))return [];
- const escOverpass=name.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
- const query='[out:json][timeout:12];way["highway"]["name"="'+escOverpass+'"](around:2500,'+lat+','+lon+');out geom;';
+ const escaped=name.replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+ // Envelope amplo de BH (inclui áreas limítrofes); a conectividade identifica a via exata.
+ const query='[out:json][timeout:20];way["highway"]["name"="'+escaped+'"](-20.07,-44.10,-19.72,-43.75);out body geom;';
  const u='https://overpass.kumi.systems/api/interpreter?data='+encodeURIComponent(query);
- const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),10000);
+ const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),22000);
  try{
-  const res=await fetch(u,{signal:abort.signal,headers:{Accept:'application/json'}});
-  if(!res.ok)throw Error('Serviço de logradouros indisponível');
-  const json=await res.json();
-  return (json.elements||[]).filter(e=>e.type==='way'&&Array.isArray(e.geometry)&&e.geometry.length>=2)
-   .map(e=>e.geometry.map(pt=>toXY(pt.lon,pt.lat)));
+  const response=await fetch(u,{signal:abort.signal,headers:{Accept:'application/json'}});
+  if(!response.ok)throw Error('Serviço de logradouros indisponível');
+  const json=await response.json();
+  const ways=(json.elements||[]).filter(e=>e.type==='way'&&Array.isArray(e.geometry)&&e.geometry.length>=2);
+  return connectedStreetWays(ways,item.point);
  }finally{clearTimeout(timer)}
 }
 async function selectOnlineResult(item){
@@ -373,7 +416,7 @@ async function selectOnlineResult(item){
  if(item.isRoad){
   let lines=[];
   try{lines=await fetchStreetLines(item)}catch(e){console.warn('Consulta de traçado indisponível',e.message)}
-  if(!lines.length)lines=roadGeoJSONLines(item.geojson);
+  if(!lines.length){lines=roadGeoJSONLines(item.geojson);if(lines.length)ui.network.textContent='Traçado completo indisponível; exibindo apenas o trecho retornado pela busca.';}
   if(revision!==roadSelection.revision)return;
   if(lines.length){selectRoadLines(lines,item.roadName||item.name);return}
   // Não desenhar um polígono como se fosse uma rua.
