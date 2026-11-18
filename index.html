@@ -236,7 +236,7 @@ function drawMunicipioMask(){if(!config.municipio.ready||!selected.has('municipi
 function drawMunicipioBorder(){if(!config.municipio.ready||!selected.has('municipio'))return;ctx.save();for(const f of DATA.xmunicipio){makePath(f);ctx.strokeStyle='#2e754a';ctx.globalAlpha=.95;ctx.lineWidth=2.4;ctx.stroke()}ctx.restore();}
 function drawBairroShape(features,color,fill=.18,width=3){if(!features?.length)return;ctx.save();ctx.lineJoin='round';for(const f of features){makePath(f);ctx.fillStyle=color;ctx.globalAlpha=fill;ctx.fill('evenodd');ctx.globalAlpha=.95;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}ctx.restore();}
 function bairroShapesByPoint(pt){if(!config.bairros.ready||!pt)return [];let f=findPolygon('xbairros',pt);if(!f)return [];const key=normalize(f[2]?.[0]);return DATA.xbairros.filter(x=>normalize(x[2]?.[0])===key)}
-function drawBairroSelections(){drawBairroShape(bairroState.features,'#96d071',.24,3.4);if(comparison.a)drawBairroShape(bairroShapesByPoint(comparison.a.point),'#a4ca62',.09,2.3);if(comparison.b)drawBairroShape(bairroShapesByPoint(comparison.b.point),'#f49a66',.09,2.3)}
+function drawBairroSelections(){drawBairroShape(bairroState.features,'#96d071',.24,3.4);if(comparison.a)drawBairroShape(comparison.a.kind==='bairro'?comparison.a.features:bairroShapesByPoint(comparison.a.point),'#a4ca62',.09,2.3);if(comparison.b)drawBairroShape(comparison.b.kind==='bairro'?comparison.b.features:bairroShapesByPoint(comparison.b.point),'#f49a66',.09,2.3)}
 function draw(){ctx.clearRect(0,0,view.w,view.h);drawTileLayer();drawMunicipioMask();const b=bounds();for(const name of ['indicadores_sociais','heat','alag','inun','perme','green','pracas','slide','flood','water','natural','canal','bacias','subbacias','bairros','regionais','arborizacao'])drawLayer(name,b);drawMunicipioBorder();drawBairroSelections();drawMarker();drawCompareMarkers()}
 function buildLayerControls(){let last='';const el=document.getElementById('layer-controls');let html='';for(const c of configs){if(c.group!==last){last=c.group;html+=`<div class="group-title">${esc(last)}</div>`}html+=`<div class="layer-row ${selected.has(c.id)?'':'off'} ${c.optional&&!c.ready?'unavailable':''}" id="row-${c.id}"><div class="layer-head"><input class="layer-toggle" type="checkbox" id="check-${c.id}" data-layer="${c.id}" ${selected.has(c.id)?'checked':''} ${c.optional&&!c.ready?'disabled':''} aria-label="Mostrar ${esc(c.label)}"><span class="layer-swatch" style="background:${c.color}"></span><label class="layer-text" for="check-${c.id}"><div class="layer-name">${esc(c.label)}</div><div class="layer-desc">${esc(c.desc)}</div></label></div><div class="layer-slider"><label for="range-${c.id}">Opacidade</label><input id="range-${c.id}" data-alpha="${c.id}" type="range" min="10" max="100" step="5" value="${Math.round(c.alpha*100)}"><span id="pct-${c.id}">${Math.round(c.alpha*100)}%</span></div></div>`}
  el.innerHTML=html;el.addEventListener('change',e=>{if(e.target.dataset.layer){const k=e.target.dataset.layer;if(e.target.checked)selected.add(k);else selected.delete(k);refresh()}});el.addEventListener('input',e=>{if(e.target.dataset.alpha){const k=e.target.dataset.alpha;config[k].alpha=Number(e.target.value)/100;document.getElementById('pct-'+k).textContent=e.target.value+'%';requestDraw()}})}
@@ -280,7 +280,7 @@ function inspect(pt){marker.point=pt;marker.name='Ponto investigado';let flood=f
  ui.body.innerHTML=out;ui.info.classList.add('open');requestDraw()}
 function normalize(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().toLowerCase()}
 function offlineMatches(q){q=normalize(q).replace(/^(rua|av|avenida|praca|alameda|rodovia)\s+/,'');if(q.length<3)return [];let all=[];const seen=new Set();for(const f of DATA.g){let nam=(f[2][1]||'')+' '+(f[2][2]||'');let s=normalize(nam);if(s.includes(q)&&!seen.has('g'+s)){seen.add('g'+s);all.push({name:nam.trim()||'Conexão verde',sub:'Conexão verde cadastrada · busca local',bbox:f[0],kind:'local'})}}if(config.bairros.ready){for(const nam of new Set(DATA.xbairros.map(f=>String(f[2]?.[0]||'')).filter(Boolean))){if(normalize(nam).includes(q)) {let features=DATA.xbairros.filter(f=>f[2]?.[0]===nam);all.push({name:nam,sub:'Bairro oficial · selecionar perímetro',kind:'bairro',bbox:bairroBox(features)});}}}for(const f of DATA.w){let nam=f[2][1];let s=normalize(nam);if(s.includes(q)&&!seen.has('w'+s)){seen.add('w'+s);all.push({name:nam.trim()||'Curso d’água sem nome',sub:'Curso d’água · busca local',bbox:f[0],kind:'local'})}}return all.slice(0,8)}
-let searchResults=[];function showSearch(items,message=''){searchResults=items;ui.search.classList.add('open');ui.search.innerHTML=message?`<div class="result-message">${esc(message)}</div>`:'';for(let i=0;i<items.length;i++){let item=items[i],el=document.createElement('button');el.type='button';el.className='result-item';el.innerHTML=`${esc(item.name)}<small>${esc(item.sub)}</small>`;el.addEventListener('click',()=>{if(item.kind==='bairro'){selectBairro(item.name,true);marker.point=null;marker.name='';ui.info.classList.remove('open')}else if(item.kind==='online'){marker.point=item.point;marker.name=item.name;zoomToPoint(item.point,15.2);selectBairroFromPoint(item.point,false);ui.info.classList.remove('open')}else{const pt=[(item.bbox[0]+item.bbox[2])/2,(item.bbox[1]+item.bbox[3])/2];marker.point=pt;marker.name=item.name;zoomToBBox(item.bbox,3.2);ui.info.classList.remove('open')}if(comparison.active&&marker.point)registerCompare(marker.point,comparison.active,item.name);ui.search.classList.remove('open')});ui.search.appendChild(el)}}
+let searchResults=[];function showSearch(items,message=''){searchResults=items;ui.search.classList.add('open');ui.search.innerHTML=message?`<div class="result-message">${esc(message)}</div>`:'';for(let i=0;i<items.length;i++){let item=items[i],el=document.createElement('button');el.type='button';el.className='result-item';el.innerHTML=`${esc(item.name)}<small>${esc(item.sub)}</small>`;el.addEventListener('click',()=>{if(item.kind==='bairro'){selectBairro(item.name,true);registerCompareBairro(item.name);marker.point=null;marker.name='';ui.info.classList.remove('open')}else if(item.kind==='online'){marker.point=item.point;marker.name=item.name;zoomToPoint(item.point,15.2);selectBairroFromPoint(item.point,false);ui.info.classList.remove('open')}else{const pt=[(item.bbox[0]+item.bbox[2])/2,(item.bbox[1]+item.bbox[3])/2];marker.point=pt;marker.name=item.name;zoomToBBox(item.bbox,3.2);ui.info.classList.remove('open')}if(comparison.active&&marker.point)registerCompare(marker.point,comparison.active,item.name);ui.search.classList.remove('open')});ui.search.appendChild(el)}}
 let searchPending=false;
 let autocompleteTimer=null;
 function updateAutocomplete(){
@@ -327,7 +327,7 @@ function bind(){document.getElementById('search-form').addEventListener('submit'
 });
  const presets={agua:['flood','alag','water','inun'],calor:['heat','green','water'],solo:['perme','green','water'],justica:['flood','slide','heat']};document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{setSelected(presets[b.dataset.preset]);document.querySelector('[data-tab="camadas"]').click()});
  document.getElementById('zoom-in').onclick=()=>zoomAt(view.w/2,view.h/2,1);document.getElementById('zoom-out').onclick=()=>zoomAt(view.w/2,view.h/2,-1);document.getElementById('zoom-reset').onclick=()=>fitExtent();document.getElementById('basemap-btn').onclick=()=>{const m=document.getElementById('basemap-menu');m.hidden=!m.hidden;document.getElementById('basemap-btn').setAttribute('aria-expanded',String(!m.hidden));};document.querySelectorAll('[data-basemap]').forEach(b=>b.addEventListener('click',()=>changeBasemap(b.dataset.basemap)));document.addEventListener('pointerdown',e=>{if(!e.target.closest('#basemap-menu')&&!e.target.closest('#basemap-btn')){document.getElementById('basemap-menu').hidden=true;document.getElementById('basemap-btn').setAttribute('aria-expanded','false')}});
- document.getElementById('legend-toggle').onclick=()=>{const isOpen=ui.leg.hidden;ui.leg.hidden=!isOpen;ui.leg.classList.toggle('open',isOpen);document.getElementById('legend-toggle').setAttribute('aria-expanded',String(isOpen));};document.getElementById('zoom-municipio').onclick=()=>{if(config.municipio.ready&&DATA.xmunicipio.length)zoomToBBox(bairroBox(DATA.xmunicipio),1.16);else fitExtent()};document.getElementById('bairro-select').onchange=e=>e.target.value?selectBairro(e.target.value,true):clearBairro();document.getElementById('bairro-clear').onclick=()=>clearBairro();document.getElementById('fullscreen-btn').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else host.requestFullscreen?.()};
+ document.getElementById('legend-toggle').onclick=()=>{const isOpen=ui.leg.hidden;ui.leg.hidden=!isOpen;ui.leg.classList.toggle('open',isOpen);document.getElementById('legend-toggle').setAttribute('aria-expanded',String(isOpen));};document.getElementById('zoom-municipio').onclick=()=>{if(config.municipio.ready&&DATA.xmunicipio.length)zoomToBBox(bairroBox(DATA.xmunicipio),1.16);else fitExtent()};document.getElementById('bairro-select').onchange=e=>{if(e.target.value){selectBairro(e.target.value,true);registerCompareBairro(e.target.value)}else clearBairro()};document.getElementById('bairro-clear').onclick=()=>clearBairro();document.getElementById('fullscreen-btn').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else host.requestFullscreen?.()};
  canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;interaction.dragging=true;interaction.moved=0;interaction.lastX=e.clientX;interaction.lastY=e.clientY;canvas.classList.add('grabbing');canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!interaction.dragging)return;let dx=e.clientX-interaction.lastX,dy=e.clientY-interaction.lastY;interaction.moved+=Math.abs(dx)+Math.abs(dy);interaction.lastX=e.clientX;interaction.lastY=e.clientY;view.cx-=dx/pxs();view.cy-=dy/pxs();requestDraw()});canvas.addEventListener('pointerup',e=>{if(!interaction.dragging)return;interaction.dragging=false;canvas.classList.remove('grabbing');if(interaction.moved<7){let b=canvas.getBoundingClientRect(),sx=e.clientX-b.left,sy=e.clientY-b.top,p=world(sx,sy);if(comparison.active){registerCompare(p,comparison.active)}else if(marker.point&&Math.hypot(...(()=>{const at=scr(...marker.point);return [at[0]-sx,at[1]-sy]})())<22){inspect(marker.point)}else{selectBairroFromPoint(p,false);inspect(p)}}});canvas.addEventListener('pointercancel',()=>{interaction.dragging=false;canvas.classList.remove('grabbing')});canvas.addEventListener('wheel',e=>{e.preventDefault();const b=canvas.getBoundingClientRect();zoomAt(e.clientX-b.left,e.clientY-b.top,e.deltaY<0?.42:-.42)},{passive:false});canvas.addEventListener('dblclick',e=>{e.preventDefault();const b=canvas.getBoundingClientRect();zoomAt(e.clientX-b.left,e.clientY-b.top,1)});window.addEventListener('keydown',e=>{if(document.activeElement===ui.input)return;if(e.key==='Escape'){ui.info.classList.remove('open');ui.search.classList.remove('open');ui.leg.hidden=true;ui.leg.classList.remove('open')}if(e.key==='+'||e.key==='=')zoomAt(view.w/2,view.h/2,1);if(e.key==='-')zoomAt(view.w/2,view.h/2,-1)});window.addEventListener('online',()=>{ui.network.textContent='Conexão detectada: busca de endereços e mapa de ruas podem funcionar.';tileErrCount=0;requestDraw()});window.addEventListener('offline',()=>{ui.network.innerHTML='Sem conexão: <b>camadas cartográficas e análise por clique continuam disponíveis.</b>';requestDraw()});new ResizeObserver(resize).observe(canvas)}
  
 // Investigação didática V2: consultas pontuais e transparência metodológica.
@@ -356,11 +356,22 @@ Object.assign(sourceMeta,{
 });
 function drawCompareMarkers(){
  for(const [slot,item] of Object.entries({a:comparison.a,b:comparison.b})){
-  if(!item)continue;const [x,y]=scr(...item.point);if(x<-35||y<-35||x>view.w+35||y>view.h+35)continue;
+  if(!item||item.kind==='bairro')continue;const [x,y]=scr(...item.point);if(x<-35||y<-35||x>view.w+35||y>view.h+35)continue;
   ctx.save();ctx.beginPath();ctx.arc(x,y,16,0,Math.PI*2);ctx.fillStyle=slot==='a'?'#d8ed9a':'#f5b28a';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#17352a';ctx.stroke();ctx.fillStyle='#18342a';ctx.font='900 16px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(slot.toUpperCase(),x,y);ctx.restore();
  }
 }
 function armCompare(slot){comparison.active=(comparison.active===slot?null:slot);document.querySelectorAll('.compare-choice').forEach(b=>{const on=b.id===`choose-${comparison.active}`;b.classList.toggle('armed',on);b.setAttribute('aria-pressed',String(on))});const float=document.getElementById('compare-floating');float.hidden=!comparison.active;float.textContent=comparison.active?`Clique no mapa para definir o local ${comparison.active.toUpperCase()} (ou use a busca de rua)`:'';}
+function registerCompareBairro(name){
+ if(!config.bairros.ready)return;
+ const fs=DATA.xbairros.filter(f=>normalize(f[2]?.[0])===normalize(name));
+ if(!fs.length)return;
+ // Se um slot foi armado, usa-o; senão, preenche A, depois B. Ao completar, substitui B.
+ const slot=comparison.active||(!comparison.a?'a':!comparison.b?'b':'b');
+ const bbox=bairroBox(fs),point=[(bbox[0]+bbox[2])/2,(bbox[1]+bbox[3])/2];
+ comparison[slot]={kind:'bairro',features:fs,point,name:String(fs[0][2]?.[0]||name)};
+ document.getElementById('label-'+slot).textContent=comparison[slot].name+' · bairro inteiro';
+ armCompare(null);renderComparison();requestDraw();
+}
 function registerCompare(point,slot= comparison.active,name=''){
  if(!slot)return;comparison[slot]={point:[...point],name:name||`Local ${slot.toUpperCase()} · ponto selecionado`};
  document.getElementById(`label-${slot}`).textContent=comparison[slot].name;comparison.active=null;document.querySelectorAll('.compare-choice').forEach(b=>{b.classList.remove('armed');b.setAttribute('aria-pressed','false')});document.getElementById('compare-floating').hidden=true;
@@ -371,15 +382,86 @@ function pointIndicators(point){
  return {flood:!!f,slide:!!s,z:z?z[2]:null,perme:perm?perm[2]:null,green:!!g,arbor:arb?arb[2]:null,socio:findSocialFromPoint(point)};
 }
 function safeIndicator(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'Sem dado':fmt(value)}
-function compareLabel(item){if(!item)return '—';let [lon,lat]=toLonLat(...item.point);return `${esc(item.name)}`}
-function renderComparison(){
- let a=comparison.a,b=comparison.b,A=a?pointIndicators(a.point):null,B=b?pointIndicators(b.point):null;
- let where=document.getElementById('compare-results');
- if(!a&&!b){where.innerHTML='<p class="help-msg">Marque os pontos A e B no mapa. Os indicadores disponíveis aparecerão aqui.</p>';return}
- const f=(o,key)=>!o?'—':key==='flood'||key==='slide'||key==='green'?(o[key]?'Intersecta no ponto':'Não identificado no ponto'):key==='perme'?safeIndicator(o.perme?.[1]):key==='arbor'?(o.arbor?safeIndicator(o.arbor[1])+'%':'Sem dado'):key==='heat'?safeIndicator(o.z?.[3]):key==='alag'?safeIndicator(o.z?.[1]):key==='inun'?safeIndicator(o.z?.[2]):key==='pop'?(o.socio?fmt(o.socio.populacao):'Sem dado'):key==='dom'?(o.socio?fmt(o.socio.domicilios):'Sem dado'):key==='dens'?(o.socio?.densidade!=null?fmt(o.socio.densidade):'Sem dado'):'Sem dado';
- const rows=[['Risco de inundação','flood'],['Risco de escorregamento','slide'],['Exposição a ondas de calor','heat'],['Indicador de alagamento','alag'],['Indicador de inundação','inun'],['Taxa cadastrada de permeabilidade (%)','perme'],['Conexão verde no ponto','green'],['Moradores em vias arborizadas (%) · setor censitário','arbor'],['População do bairro (Censo 2022)','pop'],['Domicílios do bairro (Censo 2022)','dom'],['Densidade do bairro (hab/km²)','dens']];
- where.innerHTML=`<table><thead><tr><th>Indicador</th><th><span class="compare-disc disc-a" style="display:inline;padding:3px 7px">A</span> Local A</th><th><span class="compare-disc disc-b" style="display:inline;padding:3px 7px">B</span> Local B</th></tr></thead><tbody><tr><td>Local selecionado</td><td>${compareLabel(a)}</td><td>${compareLabel(b)}</td></tr>${rows.map(([lab,k])=>`<tr><td>${esc(lab)}</td><td>${esc(f(A,k))}</td><td>${esc(f(B,k))}</td></tr>`).join('')}</tbody></table><div class="compare-note"><b>Leitura exploratória:</b> valores nas posições A/B, não médias territoriais. “Não identificado” significa apenas ausência de interseção nos arquivos carregados; jamais comprova ausência de risco. A população e a densidade, quando disponíveis, referem-se ao <b>bairro inteiro</b>; calor, riscos e permeabilidade referem-se ao <b>ponto selecionado</b>. Esses indicadores não devem ser comparados como se tivessem a mesma escala. Renda ainda depende de base específica. A arborização, quando disponível, é um percentual do <b>setor censitário</b>; não é cobertura de copa, medição térmica ou média do bairro.</div>`;where.innerHTML+=`<div class="actions compare-export">${a?'<button type="button" data-ficha-slot="a">Usar A na ficha de intervenção</button>':''}${b?'<button type="button" data-ficha-slot="b">Usar B na ficha de intervenção</button>':''}</div>`;
+function compareLabel(item){if(!item)return '—';return esc(item.name)+(item.kind==='bairro'?' · bairro inteiro':' · ponto')}
+// Interseção cartográfica: bbox, contenção de vértices e cruzamento dos segmentos.
+function segmentsCross(a,b,c,d){
+ const cross=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+ const ab1=cross(a,b,c),ab2=cross(a,b,d),cd1=cross(c,d,a),cd2=cross(c,d,b);
+ const eps=1e-7;
+ const on=(p,q,r)=>Math.abs(cross(p,q,r))<eps&&r[0]>=Math.min(p[0],q[0])-eps&&r[0]<=Math.max(p[0],q[0])+eps&&r[1]>=Math.min(p[1],q[1])-eps&&r[1]<=Math.max(p[1],q[1])+eps;
+ return (ab1*ab2<0&&cd1*cd2<0)||on(a,b,c)||on(a,b,d)||on(c,d,a)||on(c,d,b);
 }
+function polygonsIntersect(a,b){
+ if(!isVisible(a[0],b[0]))return false;
+ for(const ring of a[1]||[])for(const pt of ring)if(insideFeature(b,pt))return true;
+ for(const ring of b[1]||[])for(const pt of ring)if(insideFeature(a,pt))return true;
+ for(const ra of a[1]||[])for(const rb of b[1]||[]){
+  for(let i=0;i<ra.length;i++){const p=ra[i],q=ra[(i+1)%ra.length];for(let j=0;j<rb.length;j++)if(segmentsCross(p,q,rb[j],rb[(j+1)%rb.length]))return true;}
+ }
+ return false;
+}
+function featuresTouchBairro(features,layer){
+ return (DATA[layer]||[]).some(f=>features.some(b=>polygonsIntersect(b,f)));
+}
+function bairroValues(features,layer,index){
+ const values=[];
+ for(const f of DATA[layer]||[]){
+  if(!features.some(b=>polygonsIntersect(b,f)))continue;
+  const n=Number(f[2]?.[index]);
+  if(f[2]?.[index]!==null&&f[2]?.[index]!==''&&Number.isFinite(n))values.push(n);
+ }
+ return values;
+}
+function rangeLabel(values,suffix=''){
+ if(!values.length)return 'Sem dado';
+ const min=Math.min(...values),max=Math.max(...values);
+ return (min===max?fmt(min):fmt(min)+'–'+fmt(max))+suffix;
+}
+function bairroIndicators(item){
+ const fs=item.features;
+ return {
+  kind:'bairro',
+  flood:featuresTouchBairro(fs,'f'),
+  slide:featuresTouchBairro(fs,'s'),
+  green:featuresTouchBairro(fs,'g'),
+  ranges:{
+   heat:rangeLabel(bairroValues(fs,'z',3)),
+   alag:rangeLabel(bairroValues(fs,'z',1)),
+   inun:rangeLabel(bairroValues(fs,'z',2)),
+   perme:rangeLabel(bairroValues(fs,'p',1),'%')
+  },
+  socio:bairroStats(item.name)
+ };
+}
+function renderComparison(){
+ const a=comparison.a,b=comparison.b;
+ const A=a?(a.kind==='bairro'?bairroIndicators(a):{...pointIndicators(a.point),kind:'ponto'}):null;
+ const B=b?(b.kind==='bairro'?bairroIndicators(b):{...pointIndicators(b.point),kind:'ponto'}):null;
+ const where=document.getElementById('compare-results');
+ if(!a&&!b){where.innerHTML='<p class="help-msg">Pesquise e selecione bairros para preencher A e B automaticamente, ou marque pontos no mapa.</p>';return}
+ const value=(o,key)=>{
+  if(!o)return '—';
+  if(key==='pop')return o.socio?fmt(o.socio.populacao):'Sem dado';
+  if(key==='dom')return o.socio?fmt(o.socio.domicilios):'Sem dado';
+  if(key==='dens')return o.socio?.densidade!=null?fmt(o.socio.densidade):'Sem dado';
+  if(o.kind==='bairro'){
+   if(['flood','slide','green'].includes(key))return o[key]?'Há interseção no bairro':'Não identificado no bairro';
+   if(key==='arbor')return 'Sem média por bairro validada';
+   return o.ranges[key]||'Sem dado';
+  }
+  if(['flood','slide','green'].includes(key))return o[key]?'Intersecta no ponto':'Não identificado no ponto';
+  if(key==='perme')return safeIndicator(o.perme?.[1]);
+  if(key==='arbor')return o.arbor?safeIndicator(o.arbor[1])+'%':'Sem dado';
+  if(key==='heat')return safeIndicator(o.z?.[3]);
+  if(key==='alag')return safeIndicator(o.z?.[1]);
+  if(key==='inun')return safeIndicator(o.z?.[2]);
+  return 'Sem dado';
+ };
+ const rows=[['Risco de inundação','flood'],['Risco de escorregamento','slide'],['Exposição a ondas de calor','heat'],['Indicador de alagamento','alag'],['Indicador de inundação','inun'],['Taxa cadastrada de permeabilidade (%)','perme'],['Conexão verde','green'],['Moradores em vias arborizadas (%) · setor censitário','arbor'],['População do bairro (Censo 2022)','pop'],['Domicílios do bairro (Censo 2022)','dom'],['Densidade do bairro (hab/km²)','dens']];
+ where.innerHTML=`<table><thead><tr><th>Indicador</th><th><span class="compare-disc disc-a" style="display:inline;padding:3px 7px">A</span> Local A</th><th><span class="compare-disc disc-b" style="display:inline;padding:3px 7px">B</span> Local B</th></tr></thead><tbody><tr><td>Local selecionado</td><td>${compareLabel(a)}</td><td>${compareLabel(b)}</td></tr>${rows.map(([lab,k])=>`<tr><td>${esc(lab)}</td><td>${esc(value(A,k))}</td><td>${esc(value(B,k))}</td></tr>`).join('')}</tbody></table><div class="compare-note"><b>Critério espacial:</b> para bairros, riscos de inundação e escorregamento e conexões verdes indicam interseção de qualquer área cadastrada com o perímetro do bairro, não abrangência total nem grau de risco. Calor, alagamento, inundação e permeabilidade exibem a <b>faixa mínima–máxima dos polígonos intersectantes</b>, sem ponderação espacial; não são médias do bairro. Arborização setorial não é extrapolada. Para pontos, os indicadores continuam pontuais. Ausência de interseção na base não comprova ausência de risco. As fontes cartográficas podem ter recortes e datas diferentes.</div>`;
+ where.innerHTML+=`<div class="actions compare-export">${a?'<button type="button" data-ficha-slot="a">Usar A na ficha de intervenção</button>':''}${b?'<button type="button" data-ficha-slot="b">Usar B na ficha de intervenção</button>':''}</div>`;
+}
+
 const storySteps=[
  {phase:'01 · Pergunta central',title:'A cidade é igualmente vulnerável?',text:'Comece apresentando a questão da turma: como arborização, calor e riscos associados a chuvas se distribuem em diferentes territórios de Belo Horizonte? Os dados cartográficos sugerem perguntas; não respondem sozinhos a todas elas.',question:'Quais informações sociais precisaríamos para falar em injustiça climática?',layers:['flood','heat','green']},
  {phase:'02 · Arborização e calor',title:'Onde há sombra? Onde há exposição?',text:'Compare a exposição a ondas de calor e a arborização nas vias por setor censitário (quando a base estiver disponível). Um indicador de calor não é termômetro, e arborização de vias não equivale a cobertura de copas.',question:'A presença de uma conexão verde garante sombra nas calçadas?',layers:['heat','arborizacao']},
@@ -402,7 +484,7 @@ function printFicha(){let content=document.getElementById('print-sheet');content
 function showSource(id){const meta=sourceMeta[id],configItem=config[id];if(!meta||!configItem)return;document.getElementById('source-modal-title').textContent=configItem.label;document.getElementById('source-modal-body').innerHTML=`<p class="meta"><b>Arquivo original:</b> ${esc(meta.file)}</p><p class="meta"><b>Origem imediata:</b> ${esc(extraMeta[id]?.source||'pacote QGIS disponibilizado pela turma, recebido em 17/11/2026.')}</p><p class="meta"><b>Ano de referência:</b> ${esc(extraMeta[id]?.reference||'Não verificado nos metadados recebidos.')}</p><p><b>Como ler:</b> ${esc(meta.variable)}</p><p><b>Limite interpretativo:</b> ${esc(meta.caution)}</p><p><a target="_blank" rel="noopener noreferrer" href="https://prefeitura.pbh.gov.br/bhgeo/acervo-cartografico">Consultar acervo BHGeo e metadados</a></p>`;document.getElementById('source-modal').classList.add('open');document.getElementById('close-source').focus()}
 function bindV2(){
  document.getElementById('choose-a').addEventListener('click',()=>armCompare('a'));document.getElementById('choose-b').addEventListener('click',()=>armCompare('b'));
- document.getElementById('compare-results').addEventListener('click',e=>{const btn=e.target.closest('[data-ficha-slot]');if(!btn)return;const item=comparison[btn.dataset.fichaSlot];if(!item)return;const d=pointIndicators(item.point),[lon,lat]=toLonLat(...item.point);document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Consulta exploratória do ponto '+btn.dataset.fichaSlot.toUpperCase()+' (não representa bairro):\nExposição a ondas de calor: '+safeIndicator(d.z?.[3])+'; Indicador de alagamento: '+safeIndicator(d.z?.[1])+'; Indicador de inundação: '+safeIndicator(d.z?.[2])+'; Taxa cadastrada de permeabilidade (%): '+safeIndicator(d.perme?.[1])+'; Risco inundação: '+(d.flood?'intersecta no ponto':'não identificado no ponto')+'; Risco escorregamento: '+(d.slide?'intersecta no ponto':'não identificado no ponto')+'.\nFonte imediata: camadas do QGIS da turma (recebidas em 17/11/2026); data original das bases a confirmar. Arborização do setor censitário (se disponível): '+(d.arbor?safeIndicator(d.arbor[1])+'%':'sem dado')+'. Indicadores de renda não incluídos.';document.querySelector('[data-tab=solucoes]').click()});
+ document.getElementById('compare-results').addEventListener('click',e=>{const btn=e.target.closest('[data-ficha-slot]');if(!btn)return;const item=comparison[btn.dataset.fichaSlot];if(!item)return;if(item.kind==='bairro'){document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Bairro '+item.name+': consulte os indicadores e critérios espaciais no painel Comparar. Riscos são interseções com qualquer parte do bairro; os intervalos de outros indicadores não são médias. Confirme as fontes antes de propor intervenções.';document.querySelector('[data-tab=solucoes]').click();return}const d=pointIndicators(item.point),[lon,lat]=toLonLat(...item.point);document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Consulta exploratória do ponto '+btn.dataset.fichaSlot.toUpperCase()+' (não representa bairro):\nExposição a ondas de calor: '+safeIndicator(d.z?.[3])+'; Indicador de alagamento: '+safeIndicator(d.z?.[1])+'; Indicador de inundação: '+safeIndicator(d.z?.[2])+'; Taxa cadastrada de permeabilidade (%): '+safeIndicator(d.perme?.[1])+'; Risco inundação: '+(d.flood?'intersecta no ponto':'não identificado no ponto')+'; Risco escorregamento: '+(d.slide?'intersecta no ponto':'não identificado no ponto')+'.\nFonte imediata: camadas do QGIS da turma (recebidas em 17/11/2026); data original das bases a confirmar. Arborização do setor censitário (se disponível): '+(d.arbor?safeIndicator(d.arbor[1])+'%':'sem dado')+'. Indicadores de renda não incluídos.';document.querySelector('[data-tab=solucoes]').click()});
  document.getElementById('clear-compare').addEventListener('click',()=>{comparison.a=null;comparison.b=null;armCompare(null);document.getElementById('label-a').textContent='Não selecionado';document.getElementById('label-b').textContent='Não selecionado';renderComparison();requestDraw()});
  document.getElementById('use-last').addEventListener('click',()=>{if(!marker.point){document.getElementById('compare-results').innerHTML='<p class="help-msg">Antes, pesquise uma rua ou clique no mapa para escolher um ponto.</p>';return}const slot=comparison.active||(!comparison.a?'a':'b');registerCompare(marker.point,slot,marker.name)});
  document.getElementById('story-prev').addEventListener('click',()=>showStory(Math.max(0,storyState.index-1)));
