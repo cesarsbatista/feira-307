@@ -204,7 +204,7 @@ const world=(x,y)=>[view.cx+(x-view.w/2)/pxs(),view.cy+(y-view.h/2)/pxs()];
 const bounds=()=>[view.cx-view.w/2/pxs(),view.cy-view.h/2/pxs(),view.cx+view.w/2/pxs(),view.cy+view.h/2/pxs()];
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const esc=(v)=>String(v===null||v===undefined?'':v).replace(/[&<>"']/g,a=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]));
-const fmt=(v)=>v===null||v===undefined?'sem dado':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
+const fmt=(v)=>v===null||v===undefined||v===''||!Number.isFinite(Number(v))?'Não consta':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const allExt=(()=>{let a=[Infinity,Infinity,-Infinity,-Infinity];for(const key of ['z','f','s','g','w','p'])for(const it of DATA[key]){let b=it[0];a[0]=Math.min(a[0],b[0]);a[1]=Math.min(a[1],b[1]);a[2]=Math.max(a[2],b[2]);a[3]=Math.max(a[3],b[3])}return a})();
 function fitExtent(){let [l,t,r,b]=allExt;const dx=(r-l)*1.13,dy=(b-t)*1.13;view.cx=(l+r)/2;view.cy=(t+b)/2;view.zoom=clamp(Math.log2(Math.min(view.w*K/(dx*256),view.h*K/(dy*256))),MIN_Z,MAX_Z);requestDraw()}
 function zoomToBBox(b, padding=1.7){const dx=Math.max(b[2]-b[0],100),dy=Math.max(b[3]-b[1],100);view.cx=(b[0]+b[2])/2;view.cy=(b[1]+b[3])/2;view.zoom=clamp(Math.log2(Math.min(view.w*K/(dx*padding*256),view.h*K/(dy*padding*256))),MIN_Z,MAX_Z);requestDraw()}
@@ -227,10 +227,10 @@ function thematicClassIndex(key,v){
  if(!cuts||v===null||v===undefined||v===''||!Number.isFinite(Number(v)))return -1;
  return Number(v)<=cuts[0]?0:Number(v)<=cuts[1]?1:Number(v)<=cuts[2]?2:3;
 }
-function thematicClass(key,v){const i=thematicClassIndex(key,v);return i<0?'Sem dado':thematicClasses[i]}
+function thematicClass(key,v){const i=thematicClassIndex(key,v);return i<0?'Não consta':thematicClasses[i]}
 function neighborhoodThematicClass(values,key){
  const classes=values.map(v=>thematicClassIndex(key,v)).filter(i=>i>=0);
- return classes.length?thematicClasses[Math.max(...classes)]:'Sem dado';
+ return classes.length?thematicClasses[Math.max(...classes)]:'Não consta';
 }
 function palette(kind,a){let v=a;if(v==null)return null;
  if(kind==='heat')return v<1.9?'#fff4d7':v<2.45?'#f6c778':v<3.05?'#eea062':v<3.5?'#dd7652':v<3.75?'#be514e':'#913b51';
@@ -509,7 +509,7 @@ function pointIndicators(point){
  const z=findPolygon('z',point),perm=findPolygon('p',point),g=findPolygon('g',point),f=findPolygon('f',point),s=findPolygon('s',point),arb=config.arborizacao.ready?findPolygon('xarborizacao',point):null;
  return {flood:!!f,slide:!!s,z:z?z[2]:null,perme:perm?perm[2]:null,green:!!g,arbor:arb?arb[2]:null,socio:findSocialFromPoint(point)};
 }
-function safeIndicator(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'Sem dado':fmt(value)}
+function safeIndicator(value){return value===null||value===undefined||value===''||!Number.isFinite(Number(value))?'Não consta':fmt(value)}
 function compareLabel(item){if(!item)return '—';return esc(item.name)+(item.kind==='bairro'?' · bairro inteiro':item.kind==='rua'?' · traçado da rua (indicadores pontuais)':' · ponto')}
 // Interseção cartográfica: bbox, contenção de vértices e cruzamento dos segmentos.
 function segmentsCross(a,b,c,d){
@@ -541,7 +541,7 @@ function bairroValues(features,layer,index){
  return values;
 }
 function rangeLabel(values,suffix=''){
- if(!values.length)return 'Sem dado';
+ if(!values.length)return 'Não consta';
  const min=Math.min(...values),max=Math.max(...values);
  return (min===max?fmt(min):fmt(min)+'–'+fmt(max))+suffix;
 }
@@ -569,22 +569,22 @@ function renderComparison(){
  if(!a&&!b){where.innerHTML='<p class="help-msg">Pesquise e selecione bairros para preencher A e B automaticamente, ou marque pontos no mapa.</p>';return}
  const value=(o,key)=>{
   if(!o)return '—';
-  if(key==='pop')return o.socio?fmt(o.socio.populacao):'Sem dado';
-  if(key==='dom')return o.socio?fmt(o.socio.domicilios):'Sem dado';
-  if(key==='dens')return o.socio?.densidade!=null?fmt(o.socio.densidade):'Sem dado';
+  if(key==='pop')return o.socio?fmt(o.socio.populacao):'Não consta';
+  if(key==='dom')return o.socio?fmt(o.socio.domicilios):'Não consta';
+  if(key==='dens')return o.socio?.densidade!=null?fmt(o.socio.densidade):'Não consta';
   if(o.kind==='bairro'){
-   if(['flood','slide'].includes(key))return !(DATA[key==='flood'?'f':'s']||[]).length?'Dados indisponíveis':o[key]?'Risco identificado no bairro':'Não identificado na base cartográfica';
-   if(key==='green')return !(DATA.g||[]).length?'Dados indisponíveis':o.green?'Interseção identificada no bairro':'Não identificado na base cartográfica';
-   if(key==='arbor')return 'Sem média por bairro validada';
-   return o.ranges[key]||'Sem dado';
+   if(['flood','slide'].includes(key))return !(DATA[key==='flood'?'f':'s']||[]).length?'Não consta':o[key]?'Risco identificado no bairro':'Não identificado na base cartográfica';
+   if(key==='green')return !(DATA.g||[]).length?'Não consta':o.green?'Interseção identificada no bairro':'Não identificado na base cartográfica';
+   if(key==='arbor')return 'Não consta';
+   return o.ranges[key]||'Não consta';
   }
   if(['flood','slide','green'].includes(key))return o[key]?'Intersecta no ponto':'Não identificado no ponto';
   if(key==='perme')return safeIndicator(o.perme?.[1]);
-  if(key==='arbor')return o.arbor?safeIndicator(o.arbor[1])+'%':'Sem dado';
+  if(key==='arbor')return o.arbor?safeIndicator(o.arbor[1])+'%':'Não consta';
   if(key==='heat')return thematicClass('heat',o.z?.[3]);
   if(key==='alag')return thematicClass('alag',o.z?.[1]);
   if(key==='inun')return thematicClass('inun',o.z?.[2]);
-  return 'Sem dado';
+  return 'Não consta';
  };
  const rows=[['Risco de inundação','flood'],['Risco de escorregamento','slide'],['Exposição a ondas de calor','heat'],['Indicador de alagamento','alag'],['Indicador de inundação','inun'],['Taxa cadastrada de permeabilidade (%)','perme'],['Conexão verde','green'],['Moradores em vias arborizadas (%) · setor censitário','arbor'],['População do bairro (Censo 2022)','pop'],['Domicílios do bairro (Censo 2022)','dom'],['Densidade do bairro (hab/km²)','dens']];
  where.innerHTML=`<table><thead><tr><th>Indicador</th><th><span class="compare-disc disc-a" style="display:inline;padding:3px 7px">A</span> Local A</th><th><span class="compare-disc disc-b" style="display:inline;padding:3px 7px">B</span> Local B</th></tr></thead><tbody><tr><td>Local selecionado</td><td>${compareLabel(a)}</td><td>${compareLabel(b)}</td></tr>${rows.map(([lab,k])=>`<tr><td>${esc(lab)}</td><td>${esc(value(A,k))}</td><td>${esc(value(B,k))}</td></tr>`).join('')}</tbody></table><div class="compare-note"><b>Critério espacial:</b> para todos os bairros, basta que qualquer parte de seu perímetro intersecte um polígono cadastrado de risco de inundação ou escorregamento para o indicador registrar risco identificado; isso não implica que todo o bairro esteja em risco. Conexões verdes também seguem o critério de interseção. Calor, alagamento e inundação exibem a <b>maior classe relativa presente no bairro</b>, não a classificação de todo o seu território. Permeabilidade mantém a faixa mínima–máxima sem média territorial. As classes foram calculadas por quartis dos valores válidos de cada indicador e não representam níveis oficiais de risco. Arborização setorial não é extrapolada. Para pontos, os indicadores continuam pontuais. Ausência de interseção na base não comprova ausência de risco. As fontes cartográficas podem ter recortes e datas diferentes.</div>`;
@@ -613,7 +613,7 @@ function printFicha(){let content=document.getElementById('print-sheet');content
 function showSource(id){const meta=sourceMeta[id],configItem=config[id];if(!meta||!configItem)return;document.getElementById('source-modal-title').textContent=configItem.label;document.getElementById('source-modal-body').innerHTML=`<p class="meta"><b>Arquivo original:</b> ${esc(meta.file)}</p><p class="meta"><b>Origem imediata:</b> ${esc(extraMeta[id]?.source||'pacote QGIS disponibilizado pela turma, recebido em 17/11/2026.')}</p><p class="meta"><b>Ano de referência:</b> ${esc(extraMeta[id]?.reference||'Não verificado nos metadados recebidos.')}</p><p><b>Como ler:</b> ${esc(meta.variable)}</p><p><b>Limite interpretativo:</b> ${esc(meta.caution)}</p><p><a target="_blank" rel="noopener noreferrer" href="https://prefeitura.pbh.gov.br/bhgeo/acervo-cartografico">Consultar acervo BHGeo e metadados</a></p>`;document.getElementById('source-modal').classList.add('open');document.getElementById('close-source').focus()}
 function bindV2(){
  document.getElementById('choose-a').addEventListener('click',()=>armCompare('a'));document.getElementById('choose-b').addEventListener('click',()=>armCompare('b'));
- document.getElementById('compare-results').addEventListener('click',e=>{const btn=e.target.closest('[data-ficha-slot]');if(!btn)return;const item=comparison[btn.dataset.fichaSlot];if(!item)return;if(item.kind==='bairro'){document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Bairro '+item.name+': consulte os indicadores e critérios espaciais no painel Comparar. Riscos são interseções com qualquer parte do bairro; as classes de calor, alagamento e inundação indicam a maior categoria relativa encontrada no bairro, sem caracterizar toda a área. Confirme as fontes antes de propor intervenções.';document.querySelector('[data-tab=solucoes]').click();return}const d=pointIndicators(item.point),[lon,lat]=toLonLat(...item.point);document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Consulta exploratória do ponto '+btn.dataset.fichaSlot.toUpperCase()+' (não representa bairro):\nExposição a ondas de calor: '+thematicClass('heat',d.z?.[3])+'; Indicador de alagamento: '+thematicClass('alag',d.z?.[1])+'; Indicador de inundação: '+thematicClass('inun',d.z?.[2])+'; Taxa cadastrada de permeabilidade (%): '+safeIndicator(d.perme?.[1])+'; Risco inundação: '+(d.flood?'intersecta no ponto':'não identificado no ponto')+'; Risco escorregamento: '+(d.slide?'intersecta no ponto':'não identificado no ponto')+'.\nFonte imediata: camadas do QGIS da turma (recebidas em 17/11/2026); data original das bases a confirmar. Arborização do setor censitário (se disponível): '+(d.arbor?safeIndicator(d.arbor[1])+'%':'sem dado')+'. Indicadores de renda não incluídos.';document.querySelector('[data-tab=solucoes]').click()});
+ document.getElementById('compare-results').addEventListener('click',e=>{const btn=e.target.closest('[data-ficha-slot]');if(!btn)return;const item=comparison[btn.dataset.fichaSlot];if(!item)return;if(item.kind==='bairro'){document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Bairro '+item.name+': consulte os indicadores e critérios espaciais no painel Comparar. Riscos são interseções com qualquer parte do bairro; as classes de calor, alagamento e inundação indicam a maior categoria relativa encontrada no bairro, sem caracterizar toda a área. Confirme as fontes antes de propor intervenções.';document.querySelector('[data-tab=solucoes]').click();return}const d=pointIndicators(item.point),[lon,lat]=toLonLat(...item.point);document.getElementById('field-local').value=item.name;document.getElementById('field-evidencias').value='Consulta exploratória do ponto '+btn.dataset.fichaSlot.toUpperCase()+' (não representa bairro):\nExposição a ondas de calor: '+thematicClass('heat',d.z?.[3])+'; Indicador de alagamento: '+thematicClass('alag',d.z?.[1])+'; Indicador de inundação: '+thematicClass('inun',d.z?.[2])+'; Taxa cadastrada de permeabilidade (%): '+safeIndicator(d.perme?.[1])+'; Risco inundação: '+(d.flood?'intersecta no ponto':'não identificado no ponto')+'; Risco escorregamento: '+(d.slide?'intersecta no ponto':'não identificado no ponto')+'.\nFonte imediata: camadas do QGIS da turma (recebidas em 17/11/2026); data original das bases a confirmar. Arborização do setor censitário (se disponível): '+(d.arbor?safeIndicator(d.arbor[1])+'%':'Não consta')+'. Indicadores de renda não incluídos.';document.querySelector('[data-tab=solucoes]').click()});
  document.getElementById('clear-compare').addEventListener('click',()=>{comparison.a=null;comparison.b=null;armCompare(null);document.getElementById('label-a').textContent='Não selecionado';document.getElementById('label-b').textContent='Não selecionado';renderComparison();requestDraw()});
  document.getElementById('use-last').addEventListener('click',()=>{if(!marker.point){document.getElementById('compare-results').innerHTML='<p class="help-msg">Antes, pesquise uma rua ou clique no mapa para escolher um ponto.</p>';return}const slot=comparison.active||(!comparison.a?'a':'b');registerCompare(marker.point,slot,marker.name)});
  document.getElementById('story-prev').addEventListener('click',()=>showStory(Math.max(0,storyState.index-1)));
