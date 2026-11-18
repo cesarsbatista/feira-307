@@ -7,6 +7,14 @@
 - [Abrir o mapa interativo](https://cesarsbatista.github.io/feira-307/)
 - [Código e histórico](https://github.com/cesarsbatista/feira-307)
 
+## Seleção de ruas completas — base oficial PBH
+
+- Fonte preferencial: cadastro **TRECHO_LOGRADOURO** da PBH/Prodabel, agrupado por **ID_LOGRADOURO** (todos os trechos pertencentes à via), com zoom para a extensão recuperada.
+- A aplicação tenta primeiro os arquivos locais em `dados-externos/logradouros/`. Enquanto não estiverem disponíveis, utiliza o serviço WFS municipal e, em último caso, o OpenStreetMap.
+- Importador: `scripts/importar_logradouros.py`; workflow GitHub Actions: `.github/workflows/importar-logradouros.yml`. Executa ao publicar o workflow/script ou manualmente pela opção **Run workflow**.
+- A importação só publica após verificar quantidade mínima de feições e agrupamentos; em caso de erro, não deve substituir a base local por uma exportação incompleta.
+- **Limitação:** a importação e as consultas WFS dependem da disponibilidade e permissões do serviço municipal. A implementação em código não comprova que o arquivo local foi efetivamente gerado. Confirmar em `dados-externos/logradouros/index.json` e testar o resultado no mapa.
+
 ## Atualização — classificação qualitativa dos indicadores climáticos
 
 - Calor, inundação (indicador SBN) e alagamento (indicador SBN) passam a utilizar **Baixo, Médio, Alto e Muito alto** em vez de valores numéricos, nas consultas, comparação e legenda.
