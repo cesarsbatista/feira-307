@@ -1,0 +1,33 @@
+name: Importar logradouros oficiais de Belo Horizonte
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/importar_logradouros.py'
+      - '.github/workflows/importar-logradouros.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Importar trechos lineares PBH via WFS
+        run: python scripts/importar_logradouros.py
+      - name: Publicar dados vetoriais locais
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dados-externos/logradouros/
+          if ! git diff --cached --quiet; then
+            git commit -m "Dados: base oficial de logradouros PBH"
+            git push
+          fi
