@@ -325,7 +325,22 @@ function inspect(pt,explicitName=''){
  out+=`<div class="info-disclaimer">Uma área não identificada nos dados recebidos <b>não significa ausência de risco</b>. A consulta é educacional e não substitui avaliações técnicas ou alertas da Defesa Civil.</div>`;
  ui.body.innerHTML=out;ui.info.classList.add('open');requestDraw()}
 function normalize(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().toLowerCase()}
-function offlineMatches(q){q=normalize(q).replace(/^(rua|av|avenida|praca|alameda|rodovia)\s+/,'');if(q.length<3)return [];let all=[];const seen=new Set();for(const f of DATA.g){let nam=(f[2][1]||'')+' '+(f[2][2]||'');let s=normalize(nam);if(s.includes(q)&&!seen.has('g'+s)){seen.add('g'+s);all.push({name:nam.trim()||'Conexão verde',sub:'Conexão verde cadastrada · busca local',bbox:f[0],kind:'local'})}}if(config.bairros.ready){for(const nam of new Set(DATA.xbairros.map(f=>String(f[2]?.[0]||'')).filter(Boolean))){if(normalize(nam).includes(q)) {let features=DATA.xbairros.filter(f=>f[2]?.[0]===nam);all.push({name:nam,sub:'Bairro oficial · selecionar perímetro',kind:'bairro',bbox:bairroBox(features)});}}}for(const f of DATA.w){let nam=f[2][1];let s=normalize(nam);if(s.includes(q)&&!seen.has('w'+s)){seen.add('w'+s);all.push({name:nam.trim()||'Curso d’água sem nome',sub:'Curso d’água · busca local',bbox:f[0],kind:'local'})}}return all.slice(0,8)}
+function offlineMatches(q){q=normalize(q).replace(/^(rua|av|avenida|praca|alameda|rodovia)\s+/,'');if(q.length<3)return [];let all=[];const seen=new Set();for(const f of DATA.g){let nam=(f[2][1]||'')+' '+(f[2][2]||'');let s=normalize(nam);if(s.includes(q)&&!seen.has('g'+s)){seen.add('g'+s);all.push({name:nam.trim()||'Conexão verde',sub:'Conexão verde cadastrada · busca local',bbox:f[0],kind:'local'})}}if(config.bairros.ready){
+ const names=[...new Set(DATA.xbairros.map(f=>String(f[2]?.[0]||'')).filter(Boolean))];
+ const candidateNames=[...names];
+ // O bairro Serra consta no cadastro popular da PBH, mas está ausente
+ // do arquivo atual BAIRRO_OFICIAL. Oferecer busca complementar explícita.
+ if(!names.some(n=>normalize(n)==='serra'))candidateNames.push('Serra');
+ for(const nam of candidateNames){
+  if(!normalize(nam).includes(q))continue;
+  const features=DATA.xbairros.filter(f=>normalize(f[2]?.[0])===normalize(nam));
+  all.push({name:nam,sub:features.length?'Bairro · selecionar perímetro':'Bairro popular · consultar perímetro municipal',kind:features.length?'bairro':'bairro-externo',bbox:features.length?bairroBox(features):null});
+ }
+}
+all.sort((a,b)=>{
+ const priority=x=>x.kind==='bairro'||x.kind==='bairro-externo'?0:1;
+ return priority(a)-priority(b)||Number(normalize(a.name)!==q)-Number(normalize(b.name)!==q)||a.name.localeCompare(b.name,'pt-BR');
+});for(const f of DATA.w){let nam=f[2][1];let s=normalize(nam);if(s.includes(q)&&!seen.has('w'+s)){seen.add('w'+s);all.push({name:nam.trim()||'Curso d’água sem nome',sub:'Curso d’água · busca local',bbox:f[0],kind:'local'})}}return all.slice(0,8)}
 let searchResults=[];function roadGeoJSONLines(geo){
  if(!geo)return [];
  if(geo.type==='GeometryCollection')return (geo.geometries||[]).flatMap(roadGeoJSONLines);
@@ -564,6 +579,44 @@ async function selectOnlineResult(item){
  if(comparison.active)registerCompare(item.point,comparison.active,item.name);
  requestDraw();
 }
+async function selectMissingBairro(name){
+ const expected=normalize(name),sources=[
+  'https://bhmap.pbh.gov.br/v2/api/idebhgeo/wfs',
+  'https://geoservicos.pbh.gov.br/geoserver/wfs'
+ ];
+ showStreetFeedback('Consultando o perímetro de '+name+' na base de bairros populares da PBH...');
+ for(const base of sources){
+  const ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),9000);
+  try{
+   const u=new URL(base);
+   Object.entries({service:'WFS',request:'GetFeature',version:'1.0.0',typeName:'ide_bhgeo:BAIRRO_POPULAR',srsName:'EPSG:4326',outputFormat:'application/json',maxFeatures:'1500'}).forEach(([k,v])=>u.searchParams.set(k,v));
+   const res=await fetch(u.toString(),{signal:ctrl.signal});
+   if(!res.ok)continue;
+   const d=await res.json();
+   const extracted=[];
+   for(const feature of d.features||[]){
+    const props=feature.properties||{};
+    const possible=Object.entries(props).filter(([k,v])=>/nome|name/i.test(k)&&typeof v==='string').map(([k,v])=>v);
+    if(!possible.some(x=>normalize(x)===expected))continue;
+    const g=feature.geometry||{},polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+    for(const poly of polys){
+     const rings=poly.map(r=>r.map(pt=>toXY(Number(pt[0]),Number(pt[1])))).filter(r=>r.length>=4);
+     if(!rings.length)continue;
+     const xs=rings.flat().map(pt=>pt[0]),ys=rings.flat().map(pt=>pt[1]);
+     extracted.push([[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],rings,[name]]);
+    }
+   }
+   if(extracted.length){
+    DATA.xbairros.push(...extracted);config.bairros.ready=true;
+    populateBairroSelect();ui.search.classList.remove('open');
+    chooseBairroForComparison(name);
+    return;
+   }
+  }catch(e){console.warn('Consulta de bairro popular não disponível:',e.message)}
+  finally{clearTimeout(timeout)}
+ }
+ showStreetFeedback('Serra está ausente da base local; não foi possível carregar o perímetro municipal. A seleção territorial ficará indisponível até a importação oficial.');
+}
 function showSearch(items,message=''){
  searchResults=items;ui.search.classList.add('open');
  ui.search.innerHTML=message?`<div class="result-message">${esc(message)}</div>`:'';
@@ -573,6 +626,7 @@ function showSearch(items,message=''){
   el.addEventListener('click',()=>{
    ui.search.classList.remove('open');
    if(item.kind==='bairro'){roadSelection.revision++;roadSelection.lines=[];roadSelection.name='';chooseBairroForComparison(item.name);return}
+   if(item.kind==='bairro-externo'){roadSelection.revision++;roadSelection.lines=[];selectMissingBairro(item.name);return}
    if(item.kind==='online'){selectOnlineResult(item);return}
    roadSelection.revision++;roadSelection.lines=[];roadSelection.name='';
    const pt=[(item.bbox[0]+item.bbox[2])/2,(item.bbox[1]+item.bbox[3])/2];
